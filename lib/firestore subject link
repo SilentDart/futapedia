@@ -1,0 +1,5 @@
+DocumentSnapshot courseTopic = FirebaseFirestore.instance
+    .collection('Semester')
+    .doc('Second')
+    .collection('subject')
+    .doc()

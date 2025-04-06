@@ -1,0 +1,71 @@
+static Map<int, String> MTS102 = {
+
+https://www.youtube.com/watch?v=VFbyDCG_j18 //Electrons and Electrostatics
+
+https://www.youtube.com/watch?v=TFlVWf8JX4A //Conservation of Law of Electric Charges
+
+https://www.youtube.com/watch?v=KICBv5ZQQ8s //Conservation of Charge
+
+https://www.youtube.com/watch?v=kCp5yYjo9zE //Coulomb's Law 1
+
+https://www.youtube.com/watch?v=T7bjyaMdr9k //Coulomb's Law 2
+
+https://www.youtube.com/watch?v=gRMmaqbPTYI //Comparison between Gravitational Force and Coulomb's Law
+
+https://www.youtube.com/watch?v=pnuiqHWqXog //Electric Field Due to a Point Charge
+
+https://www.youtube.com/watch?v=mdulzEfQXDE //Electric Field and Forces
+
+https://www.youtube.com/watch?v=mdulzEfQXDE //Charged Particles in an Electric Field
+
+https://www.youtube.com/watch?v=qk06G3dtiKc //Superposition Principle
+
+https://www.youtube.com/watch?v=mdulzEfQXDE //Electric Field Lines 1
+
+https://www.youtube.com/watch?v=C7Nna-1L1qI //Electric Field Lines 2
+
+https://www.youtube.com/watch?v=bNYxnLvICio //Electric Dipole
+
+https://www.youtube.com/watch?v=q1eor6oIuUo //Electric Flux
+
+https://www.youtube.com/watch?v=q1eor6oIuUo //Gauss's Law and Its Applications
+
+
+//////
+
+
+https://www.youtube.com/watch?v=BimpNou0orc //Capacitors and Capacitance
+
+https://www.youtube.com/watch?v=zaT4JorVUz0 //Capacitors in Series and Parallel
+
+https://www.youtube.com/watch?v=PTyB6_Kt_5A //Energy Stored in a capacitor
+
+https://youtu.be/58PzPrjGsG8?si=xgqIYtxmPlqV2Ce0    //Resistor Overview
+
+https://www.youtube.com/watch?v=9z53qVQjasU //Resistors in Series
+
+https://www.youtube.com/watch?v=SYrOiQs3X2U //Resistors in Parallel
+
+https://www.youtube.com/watch?v=_rSHqvjDksg //Ohm's Law
+
+https://youtu.be/r-SCyD7f_zI?si=Ybna7z_a9m887568 //More Explanations and Examples
+
+https://www.youtube.com/watch?v=R0IervwiMLU //Magnetism
+
+};
+
+Color themeColor = Colors.brown;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadThemeColor();
+  }
+
+  void _loadThemeColor() async {
+    // This is the key part - accessing the saved color from another file
+    Color savedColor = await ThemeColorManager.getSavedColor();
+    setState(() {
+      themeColor = savedColor;
+    });
+  }

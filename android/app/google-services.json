@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "678992548913",
+    "project_id": "futapedia",
+    "storage_bucket": "futapedia.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:678992548913:android:3ac6dd497a7e285b617110",
+        "android_client_info": {
+          "package_name": "com.coldcode.futapedia"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "678992548913-84fp1oitn8351aqqn92bojse6iqi8h2s.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.coldcode.futapedia",
+            "certificate_hash": "2d8d0b80532b1033a06df78b05af35b68de575c2"
+          }
+        },
+        {
+          "client_id": "678992548913-t1krltho9rb3sn6sspml47j869n1ojju.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC_0A9uM404hyTHijzn933h7q_RQ-tvGOg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "678992548913-t1krltho9rb3sn6sspml47j869n1ojju.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "678992548913-15gr5g12et0hsgpv1r1d387ivs6jrs68.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.coldcode.futapedia"
+              }
+            }
+          ]
+        }
+      },
+      "admob_app_id": "ca-app-pub-2303106437123151~8152968556"
+    }
+  ],
+  "configuration_version": "1"
+}
