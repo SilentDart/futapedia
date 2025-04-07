@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:developer';
+
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 // import 'package:flutter_downloader/flutter_downloader.dart';
@@ -8,24 +12,118 @@ import 'package:futapedia/home%20pages/home/first_semester.dart';
 import 'package:futapedia/remote_config.dart/app_update.dart';
 import 'package:futapedia/settings/theme.dart';
 import 'package:futapedia/settings/theme_provider.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
+// import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:futapedia/route.dart';
 import 'package:provider/provider.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:screen_protector/screen_protector.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // Initialize Firebase
-  await MobileAds.instance.initialize(); // Initialize AdMob
-  await ScreenProtector.preventScreenshotOn();
-  await ScreenProtector.protectDataLeakageOn();
-  await FirebaseQueryCacheSecondSemester.clearCache();
-  await FirebaseQueryCacheFirstSemester.clearCache();
-  ThemeColorManager.initCachedColor();
-  
-  runApp(MyApp());
+  // Catch top-level errors
+  FlutterError.onError = (FlutterErrorDetails details) {
+    // Log to crash analytics service
+    FirebaseCrashlytics.instance.recordFlutterError(details);
+  };
+
+  // Set up zone to catch async errors
+  runZonedGuarded(() async {
+    // Initialize Flutter binding
+    WidgetsFlutterBinding.ensureInitialized();
+    
+    // Initialize critical services first with proper error handling
+    try {
+      await Firebase.initializeApp();
+    } catch (e, stackTrace) {
+      // log('Firebase initialization failed', error: e, stackTrace: stackTrace);
+      FirebaseCrashlytics.instance.recordError(e, stackTrace, reason: 'Firebase Init Error');
+      // Show graceful fallback or disable Firebase-dependent features
+    }
+    
+    // Initialize remaining services
+    try {
+      await Future.wait([
+
+        // MobileAds.instance.initialize().catchError((e, stackTrace) {
+
+        //   // log('Ad initialization failed', error: e, stackTrace: stackTrace);
+          
+        //   FirebaseCrashlytics.instance.recordError(e, stackTrace, reason: 'Ads Init Error');
+        //   return InitializationStatus({}); // Continue initialization process despite ads failure
+          
+        // }),
+
+        _initializeSecurityFeatures(),
+
+        Future(() => ThemeColorManager.initCachedColor())
+            .timeout(const Duration(seconds: 3), onTimeout: () {
+          // log('Theme initialization timed out, using defaults');
+          return null; // Use default theme
+        }),
+      ]);
+    } catch (e, stackTrace) {
+
+      // log('Non-critical initialization error', error: e, stackTrace: stackTrace);
+
+      FirebaseCrashlytics.instance.recordError(e, stackTrace, reason: 'Init Error');
+      // Continue with app launch
+    }
+    
+    // Cache clearing can be deferred until after app launch
+    _clearCachesIfNeeded();
+    
+    runApp(MyApp());
+    
+  }, (error, stackTrace) {
+    // Handle exceptions thrown outside of the Flutter framework
+    // log('Unhandled error', error: error, stackTrace: stackTrace);
+    FirebaseCrashlytics.instance.recordError(error, stackTrace, reason: 'Unhandled Error');
+  });
 }
+
+Future<void> _initializeSecurityFeatures() async {
+  try {
+    await Future.wait([
+      ScreenProtector.preventScreenshotOn(),
+      ScreenProtector.protectDataLeakageOn(),
+    ]);
+  } catch (e, stackTrace) {
+    log('Security features initialization failed', error: e, stackTrace: stackTrace);
+    FirebaseCrashlytics.instance.recordError(e, stackTrace, reason: 'Security Init Error');
+    // Could display a warning to the user that security features are limited
+  }
+}
+
+void _clearCachesIfNeeded() async {
+  // Run cache clearing operations after app launch to improve startup time
+  // Future.delayed(const Duration(seconds: ), () async {
+    try {
+      // Check if cache clearing is needed (based on time, version, etc.)
+      final prefs = await SharedPreferences.getInstance();
+      final lastCacheClear = prefs.getInt('last_cache_clear') ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      
+      if (now - lastCacheClear > const Duration(days: 7).inMilliseconds) {
+        await Future.wait([
+          FirebaseQueryCacheSecondSemester.clearCache(),
+          FirebaseQueryCacheFirstSemester.clearCache(),
+        ]);
+        await prefs.setInt('last_cache_clear', now);
+      }
+    } catch (e, stackTrace) {
+      log('Cache clearing failed', error: e, stackTrace: stackTrace);
+      FirebaseCrashlytics.instance.recordError(e, stackTrace, reason: 'Cache Clear Error');
+      // App can continue functioning normally even if cache clearing fails
+    }
+  // });
+}
+
+// // Helper function to determine if cache clearing is necessary
+// bool shouldClearCache() {
+//   // Implement logic to decide when cache should be cleared
+//   // For example, based on time since last clear, app version update, etc.
+//   return true; // Default implementation always clears cache
+// }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -69,7 +167,7 @@ class MyApp extends StatelessWidget {
 class UpdateCheckerWrapper extends StatefulWidget {
   final Widget child;
   
-  const UpdateCheckerWrapper({Key? key, required this.child}) : super(key: key);
+  const UpdateCheckerWrapper({super.key, required this.child});
   
   @override
   _UpdateCheckerWrapperState createState() => _UpdateCheckerWrapperState();

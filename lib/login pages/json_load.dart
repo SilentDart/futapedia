@@ -5,6 +5,7 @@ import 'package:futapedia/home%20pages/home/second_semester.dart';
 import 'package:futapedia/login%20pages/login.dart';
 import 'package:futapedia/firebase_services.dart/get_semester.dart';
 import 'package:futapedia/firebase_services.dart/user.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
@@ -31,18 +32,22 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       semester = result;
     });
-
   }
 
   Future<void> _initializeApp() async {
-    
-    await Future.delayed(Duration(seconds: 6));
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+  // Start both operations in parallel
+  final splashDelay = Future.delayed(Duration(seconds: 6));
+  final adsInitialization = MobileAds.instance.initialize();
+  
+  // Wait for both to complete
+  await Future.wait([splashDelay, adsInitialization]);
+  
+  if (mounted) {
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {
