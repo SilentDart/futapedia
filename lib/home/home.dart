@@ -742,7 +742,9 @@ class SettingsPage extends StatelessWidget {
                 icon: Icons.notifications_outlined,
                 title: "Notifications",
                 subtitle: "Manage notification preferences",
-                onTap: () {},
+                onTap: () {
+                  Routemaster.of(context).push('/notifications');
+                },
               ),
               
               SizedBox(height: 12.5),
@@ -819,7 +821,7 @@ class SettingsPage extends StatelessWidget {
                 padding: EdgeInsets.symmetric(vertical: 5),
                 child: ElevatedButton(
                   onPressed: () {
-                    signOut();
+                    signOut(context);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red[50],

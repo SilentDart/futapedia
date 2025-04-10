@@ -81,39 +81,46 @@ class _PastQuestionGoogleDriveManagerState extends State<PastQuestionGoogleDrive
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Past Questions'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(96),
-          child: Column(
-            children: [
-              // TabBar
-              TabBar(
-                controller: _tabController,
-                tabs: const [
-                  Tab(
-                    icon: Icon(Icons.cloud),
-                    text: 'Drive Files',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.download),
-                    text: 'Downloaded',
-                  ),
-                ],
-              ),
-              // Breadcrumb navigation will be handled by each tab
-              SizedBox(height: 48),
-            ],
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+              icon: Icon(Icons.chevron_left),
+              onPressed: () => Navigator.pop(context),
+            ),
+          title: const Text('Past Questions'),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(96),
+            child: Column(
+              children: [
+                // TabBar
+                TabBar(
+                  controller: _tabController,
+                  tabs: const [
+                    Tab(
+                      icon: Icon(Icons.cloud),
+                      text: 'Drive Files',
+                    ),
+                    Tab(
+                      icon: Icon(Icons.download),
+                      text: 'Downloaded',
+                    ),
+                  ],
+                ),
+                // Breadcrumb navigation will be handled by each tab
+                SizedBox(height: 48),
+              ],
+            ),
           ),
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          PastQuestionExplorer(),
-          PastQuestionDownloadedFilesTab(),
-        ],
+        body: TabBarView(
+          controller: _tabController,
+          children: const [
+            PastQuestionExplorer(),
+            PastQuestionDownloadedFilesTab(),
+          ],
+        ),
       ),
     );
   }
@@ -562,16 +569,16 @@ class _PastQuestionExplorerState extends State<PastQuestionExplorer> {
                             ],
                           ),
                         ),
-                        PopupMenuItem(
-                          value: 'view',
-                          child: Row(
-                            children: const [
-                              Icon(Icons.visibility),
-                              SizedBox(width: 8),
-                              Text('View'),
-                            ],
-                          ),
-                        ),
+                        // PopupMenuItem(
+                        //   value: 'view',
+                        //   child: Row(
+                        //     children: const [
+                        //       Icon(Icons.visibility),
+                        //       SizedBox(width: 8),
+                        //       Text('View'),
+                        //     ],
+                        //   ),
+                        // ),
                       ],
                       onSelected: (value) {
                         if (value == 'download') {

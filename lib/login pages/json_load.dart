@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:futapedia/home%20pages/home/first_semester.dart';
-import 'package:futapedia/home%20pages/home/home.dart';
-import 'package:futapedia/home%20pages/home/second_semester.dart';
+import 'package:futapedia/home/first_semester.dart';
+import 'package:futapedia/home/home.dart';
+import 'package:futapedia/home/second_semester.dart';
 import 'package:futapedia/login%20pages/login.dart';
 import 'package:futapedia/firebase_services.dart/get_semester.dart';
 import 'package:futapedia/firebase_services.dart/user.dart';

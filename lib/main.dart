@@ -4,20 +4,16 @@ import 'dart:developer';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-// import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:futapedia/firebase_services.dart/auth.dart';
 import 'package:futapedia/firebase_services.dart/user.dart';
-import 'package:futapedia/home%20pages/home/second_semester.dart';
-import 'package:futapedia/home%20pages/home/first_semester.dart';
 import 'package:futapedia/remote_config.dart/app_update.dart';
 import 'package:futapedia/settings/theme.dart';
 import 'package:futapedia/settings/theme_provider.dart';
-// import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:futapedia/route.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:screen_protector/screen_protector.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   // Catch top-level errors
@@ -68,9 +64,9 @@ void main() async {
       FirebaseCrashlytics.instance.recordError(e, stackTrace, reason: 'Init Error');
       // Continue with app launch
     }
-    
+    await MobileAds.instance.initialize();
     // Cache clearing can be deferred until after app launch
-    _clearCachesIfNeeded();
+    // _clearCachesIfNeeded();
     
     runApp(MyApp());
     
@@ -94,36 +90,6 @@ Future<void> _initializeSecurityFeatures() async {
   }
 }
 
-void _clearCachesIfNeeded() async {
-  // Run cache clearing operations after app launch to improve startup time
-  // Future.delayed(const Duration(seconds: ), () async {
-    try {
-      // Check if cache clearing is needed (based on time, version, etc.)
-      final prefs = await SharedPreferences.getInstance();
-      final lastCacheClear = prefs.getInt('last_cache_clear') ?? 0;
-      final now = DateTime.now().millisecondsSinceEpoch;
-      
-      if (now - lastCacheClear > const Duration(days: 7).inMilliseconds) {
-        await Future.wait([
-          FirebaseQueryCacheSecondSemester.clearCache(),
-          FirebaseQueryCacheFirstSemester.clearCache(),
-        ]);
-        await prefs.setInt('last_cache_clear', now);
-      }
-    } catch (e, stackTrace) {
-      log('Cache clearing failed', error: e, stackTrace: stackTrace);
-      FirebaseCrashlytics.instance.recordError(e, stackTrace, reason: 'Cache Clear Error');
-      // App can continue functioning normally even if cache clearing fails
-    }
-  // });
-}
-
-// // Helper function to determine if cache clearing is necessary
-// bool shouldClearCache() {
-//   // Implement logic to decide when cache should be cleared
-//   // For example, based on time since last clear, app version update, etc.
-//   return true; // Default implementation always clears cache
-// }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

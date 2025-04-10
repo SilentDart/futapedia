@@ -1,9 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:futapedia/login%20pages/login.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 // import 'package:routemaster/routemaster.dart';
 import 'package:futapedia/firebase_services.dart/user.dart';
+import 'package:routemaster/routemaster.dart';
 
 
 
@@ -95,10 +95,37 @@ class AuthServices  {
 
 
 // Inside a method or button press handler:
-Future<void> signOut() async {
+Future<void> signOut(BuildContext context) async {
+  // Store context reference before async operations
+  final navigatorContext = context;
+  
   try {
-    await FirebaseAuth.instance.signOut();
-    StudentLoginPage();
-    // Handle successful logout, like navigating to login screen
-  } catch (e){}
+    final user = FirebaseAuth.instance.currentUser;
+    
+    // Check if user is anonymous before attempting to delete
+    if (user != null && user.isAnonymous) {
+      // Delete anonymous user account
+      await user.delete();
+    } else {
+      // Regular sign out for non-anonymous users
+      await FirebaseAuth.instance.signOut();
+      
+      // Sign out from Google if it was used
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      await googleSignIn.signOut();
+    }
+
+    // Check if the widget is still mounted before using context
+    if (navigatorContext.mounted) {
+      Routemaster.of(navigatorContext).replace('/login');
+    }
+  } catch (e) {
+    // print("Error during sign out: $e");
+    // // Check before showing any snackbars
+    // if (navigatorContext.mounted) {
+    //   ScaffoldMessenger.of(navigatorContext).showSnackBar(
+    //     SnackBar(content: Text("Sign out failed. Please try again."))
+    //   );
+    // }
+  }
 }

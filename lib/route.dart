@@ -1,14 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:futapedia/home%20pages/home/home.dart';
-import 'package:futapedia/home%20pages/home/second_semester.dart';
+import 'package:futapedia/home/home.dart';
+import 'package:futapedia/home/second_semester.dart';
 import 'package:futapedia/main.dart';
-import 'package:futapedia/pdfs/all_download.dart';
-import 'package:futapedia/pdfs/services/local_file_screen.dart';
+// import 'package:futapedia/pdfs/all_download.dart';
+// import 'package:futapedia/pdfs/services/local_file_screen.dart';
 import 'package:futapedia/settings/theme.dart';
 import 'package:futapedia/study_material/past%20questions/question_explorer.dart';
 import 'package:futapedia/study_material/pdf/pdf_explorer.dart';
 import 'package:futapedia/study_material/services/encrypted_pdfviewer.dart';
+import 'package:futapedia/study_material/services/notf_pref.dart';
 import 'package:futapedia/templates/course_details.dart';
 import 'package:futapedia/templates/youtube_player.dart';
 import 'package:futapedia/test.dart/subject_selection.dart';
@@ -58,9 +59,11 @@ RouteMap getAppRoutes() {
  
       '/theme':(_) => const MaterialPage(child: ThemeSelector()),
 
-      '/downloads': (_) => const MaterialPage(child: LocalFilesScreen()),
+      // '/downloads': (_) => const MaterialPage(child: LocalFilesScreen()),
 
-      '/all_downloads':(_) => const MaterialPage(child: StudentDownloadsView()),
+      // '/all_downloads':(_) => const MaterialPage(child: StudentDownloadsView()),
+
+      '/notifications': (_) => const MaterialPage(child: StudyReminderScreen()),
       
 
       '/course_details/:courseName': (route) {

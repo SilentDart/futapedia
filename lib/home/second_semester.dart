@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:futapedia/ads/native_ad.dart';
 import 'package:futapedia/firebase_services.dart/get_semester.dart';
 import 'package:futapedia/settings/theme.dart';
@@ -12,22 +15,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // Class to manage Firebase query caching
 class FirebaseQueryCacheSecondSemester {
   static const String _timestampSuffix = "_timestamp";
-  static const int _defaultCacheDurationDays = 7;
+  static const int _defaultCacheDurationDays = 30;
+  static final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
   
   // Save query result to cache
   static Future<void> saveQueryResult(String cacheKey, dynamic data) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      
       // Save the data as string (JSON)
       if (data is List<String>) {
-        await prefs.setStringList(cacheKey, data);
+        final jsonData = jsonEncode(data);
+        await _secureStorage.write(key: cacheKey, value: jsonData);
       } else if (data is String) {
-        await prefs.setString(cacheKey, data);
+        await _secureStorage.write(key: cacheKey, value: data);
       }
       
       // Save timestamp
-      await prefs.setInt("$cacheKey$_timestampSuffix", DateTime.now().millisecondsSinceEpoch);
+      await _secureStorage.write(
+        key: "$cacheKey$_timestampSuffix", 
+        value: DateTime.now().millisecondsSinceEpoch.toString()
+      );
       
       // print("Cached Firebase query result: $cacheKey");
     } catch (e) {
@@ -38,25 +44,23 @@ class FirebaseQueryCacheSecondSemester {
   // Check if cached data is valid
   static Future<bool> isCacheValid(String cacheKey, {int durationDays = _defaultCacheDurationDays}) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      
       // Check if cache exists
-      final hasStringCache = prefs.containsKey(cacheKey) && prefs.getString(cacheKey) != null;
-      final hasListCache = prefs.getStringList(cacheKey) != null;
+      final cachedValue = await _secureStorage.read(key: cacheKey);
       
-      if (!hasStringCache && !hasListCache) {
+      if (cachedValue == null) {
         return false;
       }
       
       // Check timestamp
       final timestampKey = "$cacheKey$_timestampSuffix";
-      final timestamp = prefs.getInt(timestampKey);
+      final timestampStr = await _secureStorage.read(key: timestampKey);
       
-      if (timestamp == null) {
+      if (timestampStr == null) {
         return false;
       }
       
       // Calculate cache age
+      final timestamp = int.parse(timestampStr);
       final cachedDate = DateTime.fromMillisecondsSinceEpoch(timestamp);
       final cacheAge = DateTime.now().difference(cachedDate).inDays;
       
@@ -70,8 +74,7 @@ class FirebaseQueryCacheSecondSemester {
   // Get cached string data
   static Future<String?> getCachedString(String cacheKey) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(cacheKey);
+      return await _secureStorage.read(key: cacheKey);
     } catch (e) {
       // print("Error getting cached string: $e");
       return null;
@@ -81,8 +84,11 @@ class FirebaseQueryCacheSecondSemester {
   // Get cached string list data
   static Future<List<String>?> getCachedStringList(String cacheKey) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getStringList(cacheKey);
+      final jsonData = await _secureStorage.read(key: cacheKey);
+      if (jsonData == null) return null;
+      
+      final List<dynamic> decoded = jsonDecode(jsonData);
+      return decoded.cast<String>();
     } catch (e) {
       // print("Error getting cached string list: $e");
       return null;
@@ -91,20 +97,20 @@ class FirebaseQueryCacheSecondSemester {
   
   static Future<void> clearCache({int durationDays = _defaultCacheDurationDays}) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final keys = prefs.getKeys();
+      final allEntries = await _secureStorage.readAll();
       final now = DateTime.now().millisecondsSinceEpoch;
       
-      for (final key in keys) {
+      for (final entry in allEntries.entries) {
+        final key = entry.key;
         if (!key.endsWith(_timestampSuffix)) continue;
         
         final cacheKey = key.substring(0, key.length - _timestampSuffix.length);
-        final timestamp = prefs.getInt(key) ?? 0;
+        final timestamp = int.parse(entry.value);
         final age = (now - timestamp) ~/ (1000 * 60 * 60 * 24); // Convert to days
         
         if (age >= durationDays) {
-          await prefs.remove(cacheKey);
-          await prefs.remove(key);
+          await _secureStorage.delete(key: cacheKey);
+          await _secureStorage.delete(key: key);
         }
       }
     } catch (e) {

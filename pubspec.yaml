@@ -75,6 +75,8 @@ dependencies:
   webview_flutter: ^4.10.0
   flutter_native_splash: ^2.4.5
   firebase_crashlytics: ^4.3.5
+  timezone: ^0.10.0
+  intl: ^0.20.2
   
   # firebase_app_check: ^0.3.2+3
 

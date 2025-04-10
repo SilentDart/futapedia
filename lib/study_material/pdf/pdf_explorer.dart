@@ -48,72 +48,88 @@ class _GoogleDriveManagerScreenState extends State<GoogleDriveManagerScreen> wit
   @override
   Widget build(BuildContext context) {
     if (!_isInitialized) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Updated loading screen with better visuals
-              LoadingAnimationWidget.staggeredDotsWave(
-                color: Colors.brown,
-                size: 50,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Connecting to server...',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[800],
+      return PopScope(
+        canPop: true,
+        child: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Updated loading screen with better visuals
+                LoadingAnimationWidget.staggeredDotsWave(
+                  color: Colors.brown,
+                  size: 50,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Your study materials will appear shortly',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
+                const SizedBox(height: 24),
+                Text(
+                  'Connecting to server...',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[800],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  'Your study materials will appear shortly',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Premium Notes'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(96),
-          child: Column(
-            children: [
-              // TabBar
-              TabBar(
-                controller: _tabController,
-                tabs: const [
-                  Tab(
-                    icon: Icon(Icons.cloud),
-                    text: 'Drive Files',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.download),
-                    text: 'Downloaded',
-                  ),
-                ],
-              ),
-              // Breadcrumb navigation will be handled by each tab
-              SizedBox(height: 48),
-            ],
+    return PopScope(
+      canPop: false, // Prevent default system back behavior
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+          if (!didPop) {
+            // Manually pop for system back gestures
+            Navigator.of(context).pop();
+          }
+        },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: Icon(Icons.chevron_left),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text('Premium Notes'),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(96),
+            child: Column(
+              children: [
+                // TabBar
+                TabBar(
+                  controller: _tabController,
+                  tabs: const [
+                    Tab(
+                      icon: Icon(Icons.cloud),
+                      text: 'Drive Files',
+                    ),
+                    Tab(
+                      icon: Icon(Icons.download),
+                      text: 'Downloaded',
+                    ),
+                  ],
+                ),
+                // Breadcrumb navigation will be handled by each tab
+                SizedBox(height: 48),
+              ],
+            ),
           ),
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          EnhancedDriveExplorerTab(),
-          EnhancedDownloadedFilesTab(),
-        ],
+        body: TabBarView(
+          controller: _tabController,
+          children: const [
+            EnhancedDriveExplorerTab(),
+            EnhancedDownloadedFilesTab(),
+          ],
+        ),
       ),
     );
   }
@@ -562,16 +578,16 @@ class _EnhancedDriveExplorerTabState extends State<EnhancedDriveExplorerTab> {
                             ],
                           ),
                         ),
-                        PopupMenuItem(
-                          value: 'view',
-                          child: Row(
-                            children: const [
-                              Icon(Icons.visibility),
-                              SizedBox(width: 8),
-                              Text('View'),
-                            ],
-                          ),
-                        ),
+                        // PopupMenuItem(
+                        //   value: 'view',
+                        //   child: Row(
+                        //     children: const [
+                        //       Icon(Icons.visibility),
+                        //       SizedBox(width: 8),
+                        //       Text('View'),
+                        //     ],
+                        //   ),
+                        // ),
                       ],
                       onSelected: (value) {
                         if (value == 'download') {

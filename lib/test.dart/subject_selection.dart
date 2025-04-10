@@ -53,13 +53,14 @@ class _SubjectSelectionPageState extends State<SubjectSelectionPage> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.of(context).pop();
-        return false; // Return false to prevent the default back button behavior
-      },
+    return  PopScope(
+      canPop: true,
       child: Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: Icon(Icons.chevron_left),
+            onPressed: () => Navigator.pop(context),
+          ),
           title: Text(
             'SUBJECTS', 
             style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),

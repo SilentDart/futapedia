@@ -591,13 +591,12 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
       future: _topicsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return WillPopScope(
-            onWillPop: () async {
-              Navigator.of(context).pop();
-              return false; // Return false to prevent the default back button behavior
-            },
+          return  PopScope(
+            canPop: true,
             child: Scaffold(
-              appBar: AppBar(title: Text('Getting Your Test Ready...')),
+              appBar: AppBar(
+                title: Text('Getting Your Test Ready...'),
+              ),
               body: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -611,11 +610,8 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
             ),
           );
         } else if (snapshot.hasError) {
-          return WillPopScope(
-            onWillPop: () async {
-              Navigator.of(context).pop();
-              return false;
-            },
+          return  PopScope(
+            canPop: true,
             child: Scaffold(
               appBar: AppBar(title: Text('Oops!')),
               body: Center(
@@ -641,11 +637,8 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
             ),
           );
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return WillPopScope(
-            onWillPop: () async {
-              Navigator.of(context).pop();
-              return false;
-            },
+          return  PopScope(
+            canPop: true,
             child: Scaffold(
               appBar: AppBar(title: Text('No Content')),
               body: Center(
@@ -674,7 +667,12 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
           },
           child: Scaffold(
             appBar: AppBar(
-              title: Text('Practice Test'),
+              title: Text('Practice Test $widget.subjectid'),
+              actions: [IconButton(
+                icon: const Icon(Icons.calculate),
+                onPressed: (){},
+                tooltip: 'Scientific Calculator',
+              )],
               bottom: TabBar(
                 controller: _tabController,
                 isScrollable: true,

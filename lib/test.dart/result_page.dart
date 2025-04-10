@@ -76,171 +76,178 @@ class ResultPage extends StatelessWidget {
       _saveTestResult(context);
     });
         
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Test Results'),
-      ),
-      body: Column(
-        children: [
-          Container(
-            padding: EdgeInsets.all(16),
-            color: Colors.blue.shade50,
-            child: Column(
-              children: [
-                Text(
-                  'Score: $totalCorrect/$totalQuestions',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  '${percentage.toStringAsFixed(1)}%',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: percentage >= 70 ? Colors.green : Colors.red,
-                  ),
-                ),
-              ],
-            ),
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: Icon(Icons.chevron_left),
+            onPressed: () => Navigator.pop(context),
           ),
-          Expanded(
-            child: ListView(
+          title: Text('Test Results'),
+        ),
+        body: Column(
+          children: [
+            Container(
               padding: EdgeInsets.all(16),
-              children: [
-                ...topicQuestions.entries.expand((entry) {
-                  String topicId = entry.key;
-                  List<Question> questions = entry.value;
-                  
-                  return questions.map((question) {
-                    // Increment counter for each question
-                    questionCounter++;
+              color: Colors.blue.shade50,
+              child: Column(
+                children: [
+                  Text(
+                    'Score: $totalCorrect/$totalQuestions',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '${percentage.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: percentage >= 70 ? Colors.green : Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.all(16),
+                children: [
+                  ...topicQuestions.entries.expand((entry) {
+                    String topicId = entry.key;
+                    List<Question> questions = entry.value;
                     
-                    String userAnswer = userAnswers[topicId]![question.id] ?? '';
-                    bool isCorrect = userAnswer == question.correctAnswer;
-                    
-                    return Card(
-                      margin: EdgeInsets.only(bottom: 16),
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Question number
-                                Container(
-                                  padding: EdgeInsets.all(8),
-                                  margin: EdgeInsets.only(right: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Text(
-                                    '$questionCounter',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
+                    return questions.map((question) {
+                      // Increment counter for each question
+                      questionCounter++;
+                      
+                      String userAnswer = userAnswers[topicId]![question.id] ?? '';
+                      bool isCorrect = userAnswer == question.correctAnswer;
+                      
+                      return Card(
+                        margin: EdgeInsets.only(bottom: 16),
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Question number
+                                  Container(
+                                    padding: EdgeInsets.all(8),
+                                    margin: EdgeInsets.only(right: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue,
+                                      shape: BoxShape.circle,
                                     ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    question.text,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 16),
-                            ...question.options.map((option) {
-                              bool isUserAnswer = option == userAnswer;
-                              bool isCorrectAnswer = option == question.correctAnswer;
-                              
-                              Color? textColor;
-                              if (isUserAnswer && isCorrect) {
-                                textColor = Colors.green;
-                              } else if (isUserAnswer && !isCorrect) {
-                                textColor = Colors.red;
-                              } else if (isCorrectAnswer) {
-                                textColor = Colors.green;
-                              }
-                              
-                              return Padding(
-                                padding: EdgeInsets.symmetric(vertical: 4),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      isUserAnswer 
-                                          ? (isCorrect ? Icons.check_circle : Icons.cancel)
-                                          : (isCorrectAnswer ? Icons.check_circle_outline : Icons.radio_button_unchecked),
-                                      color: textColor,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        option,
-                                        style: TextStyle(
-                                          color: textColor,
-                                          fontWeight: isUserAnswer || isCorrectAnswer 
-                                              ? FontWeight.bold 
-                                              : FontWeight.normal,
-                                        ),
+                                    child: Text(
+                                      '$questionCounter',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                  ],
-                                ),
-                              );
-                            }),
-                          ],
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      question.text,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 16),
+                              ...question.options.map((option) {
+                                bool isUserAnswer = option == userAnswer;
+                                bool isCorrectAnswer = option == question.correctAnswer;
+                                
+                                Color? textColor;
+                                if (isUserAnswer && isCorrect) {
+                                  textColor = Colors.green;
+                                } else if (isUserAnswer && !isCorrect) {
+                                  textColor = Colors.red;
+                                } else if (isCorrectAnswer) {
+                                  textColor = Colors.green;
+                                }
+                                
+                                return Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 4),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        isUserAnswer 
+                                            ? (isCorrect ? Icons.check_circle : Icons.cancel)
+                                            : (isCorrectAnswer ? Icons.check_circle_outline : Icons.radio_button_unchecked),
+                                        color: textColor,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          option,
+                                          style: TextStyle(
+                                            color: textColor,
+                                            fontWeight: isUserAnswer || isCorrectAnswer 
+                                                ? FontWeight.bold 
+                                                : FontWeight.normal,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  });
-                }),
+                      );
+                    });
+                  }),
+                ],
+              ),
+            ),
+          ],
+        ),
+        bottomNavigationBar: BottomAppBar(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () {
+                      Navigator.popUntil(context, (route) => route.isFirst);
+                    },
+                    child: Text('HOME'),
+                  ),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      backgroundColor: Colors.green,
+                    ),
+                    onPressed: () {
+                      // Pop back to the subject selection page
+                      Navigator.pop(context);
+                      Navigator.pop(context);
+                    },
+                    child: Text('TRY ANOTHER TEST'),
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: BottomAppBar(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onPressed: () {
-                    Navigator.popUntil(context, (route) => route.isFirst);
-                  },
-                  child: Text('HOME'),
-                ),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    backgroundColor: Colors.green,
-                  ),
-                  onPressed: () {
-                    // Pop back to the subject selection page
-                    Navigator.pop(context);
-                    Navigator.pop(context);
-                  },
-                  child: Text('TRY ANOTHER TEST'),
-                ),
-              ),
-            ],
           ),
         ),
       ),
