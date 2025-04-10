@@ -86,9 +86,9 @@ class _PastQuestionGoogleDriveManagerState extends State<PastQuestionGoogleDrive
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-              icon: Icon(Icons.chevron_left),
-              onPressed: () => Navigator.pop(context),
-            ),
+            icon: Icon(Icons.chevron_left, size: 35,),
+            onPressed: () => Navigator.pop(context),
+          ),
           title: const Text('Past Questions'),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(96),

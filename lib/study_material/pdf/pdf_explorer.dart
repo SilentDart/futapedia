@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:futapedia/study_material/pdf/pdf_drive.dart';
 import 'package:futapedia/study_material/services/notification_manager.dart';
 import 'package:futapedia/study_material/services/encrypted_pdfviewer.dart';
@@ -91,16 +92,16 @@ class _GoogleDriveManagerScreenState extends State<GoogleDriveManagerScreen> wit
             // Manually pop for system back gestures
             Navigator.of(context).pop();
           }
-        },
+      },
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            icon: Icon(Icons.chevron_left),
+            icon: Icon(Icons.chevron_left, size: 35,),
             onPressed: () => Navigator.pop(context),
           ),
-          title: const Text('Premium Notes'),
+          title: const Text('Premium Notes',style: TextStyle(fontWeight: FontWeight.bold)),
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(96),
+            preferredSize: const Size.fromHeight(120),
             child: Column(
               children: [
                 // TabBar
@@ -474,6 +475,7 @@ class _EnhancedDriveExplorerTabState extends State<EnhancedDriveExplorerTab> {
                 child: Text(
                   _breadcrumbs[i].name ?? 'Unnamed',
                   style: TextStyle(
+                    fontSize: 17,
                     color: Theme.of(context).primaryColor,
                     fontWeight: i == _breadcrumbs.length - 1
                         ? FontWeight.bold
@@ -658,6 +660,12 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
   String _basePathToHide = '';
   List<DirectoryInfo> _breadcrumbs = [];
 
+  // Add this near the top of _EnhancedDownloadedFilesTabState class
+  bool _isVideoAvailable = false; // Flag to track video availability
+    
+  // Create secure storage instance for cache checking (if not already there)
+  final _secureStorage = const FlutterSecureStorage();
+
   @override
   void initState() {
     super.initState();
@@ -721,6 +729,9 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
         ];
       }
       
+      final bool isVideoAvailable = await _checkVideoAvailability();
+
+      // Then include _isVideoAvailable in the setState call
       setState(() {
         _downloadedFiles = files.where((file) {
           // Only show files in the current directory
@@ -728,6 +739,7 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
           return fileDir == _currentPath;
         }).toList();
         _isLoadingDownloads = false;
+        _isVideoAvailable = isVideoAvailable; // Set the flag based on availability
       });
     } catch (e) {
       if (mounted) {
@@ -769,13 +781,13 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
     try {
       final decryptedContent = await GoogleDriveDownloader.openFile(file.path);
       
-      if (!mounted) return;
+      
 
       if (decryptedContent != null) {
         // Navigate to file viewer
         FileViewerState.fileData = decryptedContent;
         FileViewerState.fileName = path.basename(file.path);
-
+        if (!mounted) return;
         Routemaster.of(context).push('/encryptedpdfviewer');
       } else {
         if (!mounted) return;
@@ -786,6 +798,66 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
 
       showError('Error opening file: $e');
     }
+  }
+
+
+  // Check if video is available for the current folder
+  // Check if video is available for the current folder
+Future<bool> _checkVideoAvailability() async {
+  if (_breadcrumbs.isEmpty) return false;
+  
+  // Get the last folder name from breadcrumbs
+  final String folderName = _breadcrumbs.last.name;
+  final String strippedName = folderName.replaceAll(' ', '');
+
+  // Updated regex pattern: first 3 alphabetic characters followed by 3 digits
+  RegExp coursePattern = RegExp(r'^[A-Za-z]{3}\d{3}');
+  // Check both original and stripped versions
+  if (!coursePattern.hasMatch(folderName) && !coursePattern.hasMatch(strippedName)) return false;
+  
+  // Try with original name
+  String? cachedData = await _secureStorage.read(key: 'course_$folderName');
+  
+  // If not found, try with whitespace stripped
+  cachedData ??= await _secureStorage.read(key: 'course_$strippedName');
+  
+  return cachedData != null;
+}
+
+// Navigate to video route
+void _navigateToVideo() {
+  if (_breadcrumbs.isEmpty) return;
+  
+  // Get the last folder name from breadcrumbs
+  final String folderName = _breadcrumbs.last.name;
+  final String strippedName = folderName.replaceAll(' ', '');
+
+  // Updated regex pattern: first 3 alphabetic characters followed by 3 digits
+  RegExp coursePattern = RegExp(r'^[A-Za-z]{3}\d{3}');
+  // Check both original and stripped versions
+  if (!coursePattern.hasMatch(folderName) && !coursePattern.hasMatch(strippedName)) {
+    showError('Invalid course folder format');
+    return;
+  }
+  
+      
+    // Try with original name first
+    _secureStorage.read(key: 'course_$folderName').then((data) {
+      if (data != null) {
+        if(!mounted) return;
+        Routemaster.of(context).push('/course_details/$folderName');
+      } else {
+        // Try with stripped name if original not found
+        _secureStorage.read(key: 'course_$strippedName').then((strippedData) {
+          if (strippedData != null) {
+            if(!mounted) return;
+            Routemaster.of(context).push('/course_details/$strippedName');
+          } else {
+            showError('Video not available');
+          }
+        });
+      }
+    });
   }
 
   
@@ -804,6 +876,7 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
                 child: Text(
                   _breadcrumbs[i].name,
                   style: TextStyle(
+                    fontSize: 17,
                     color: Theme.of(context).primaryColor,
                     fontWeight: i == _breadcrumbs.length - 1
                         ? FontWeight.bold
@@ -843,7 +916,7 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 5,
-        childAspectRatio: 1,
+        childAspectRatio: 0.8,
         crossAxisSpacing: 12,
         mainAxisSpacing: 16,
       ),
@@ -940,11 +1013,29 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
             height: 48,
             alignment: Alignment.centerLeft,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _buildBreadcrumbs(),
-              ),
+            child: Row(
+              children: [
+                // Breadcrumbs section - flexible to take available space
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _buildBreadcrumbs(),
+                    ),
+                  ),
+                ),
+                
+                // Video available button - only show if available
+                if (_isVideoAvailable)
+                  TextButton.icon(
+                    onPressed: _navigateToVideo,
+                    icon: const Icon(Icons.play_circle_fill),
+                    label: const Text('Video available'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).primaryColor,
+                    ),
+                  ),
+              ],
             ),
           ),
           
@@ -962,7 +1053,6 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
     );
   }
 }
-
 // Helper class for directory breadcrumb navigation
 class DirectoryInfo {
   final String id;

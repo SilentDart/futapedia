@@ -142,16 +142,13 @@ class _ThemeSelectorState extends State<ThemeSelector> {
       onWillPop: _onWillPop,
       child: Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: Icon(Icons.chevron_left, size: 35,),
+            onPressed: () => Navigator.pop(context),
+          ),
           title: Text('Pick Your Theme Color'),
           backgroundColor: selectedColor[500],
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () async {
-              if (await _onWillPop()) {
-                Navigator.of(context).pop();
-              }
-            },
-          ),
+          
         ),
         body: Container(
           padding: EdgeInsets.all(16),

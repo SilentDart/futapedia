@@ -613,7 +613,13 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
           return  PopScope(
             canPop: true,
             child: Scaffold(
-              appBar: AppBar(title: Text('Oops!')),
+              appBar: AppBar(
+                title: Text('Oops!'),
+                leading: IconButton(
+                  icon: Icon(Icons.chevron_left, size: 35,),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
               body: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -640,7 +646,13 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
           return  PopScope(
             canPop: true,
             child: Scaffold(
-              appBar: AppBar(title: Text('No Content')),
+              appBar: AppBar(
+                leading: IconButton(
+                  icon: Icon(Icons.chevron_left, size: 35,),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                title: Text('No Content')
+              ),
               body: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -667,6 +679,10 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
           },
           child: Scaffold(
             appBar: AppBar(
+              leading: IconButton(
+                icon: Icon(Icons.chevron_left, size: 35,),
+                onPressed: () => Navigator.pop(context),
+              ),
               title: Text('Practice Test $widget.subjectid'),
               actions: [IconButton(
                 icon: const Icon(Icons.calculate),

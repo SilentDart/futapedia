@@ -58,7 +58,7 @@ class _SubjectSelectionPageState extends State<SubjectSelectionPage> {
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            icon: Icon(Icons.chevron_left),
+            icon: Icon(Icons.chevron_left, size: 35,),
             onPressed: () => Navigator.pop(context),
           ),
           title: Text(

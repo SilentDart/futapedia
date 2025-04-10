@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert';
 import 'package:futapedia/firebase_services.dart/get_semester.dart';
 import 'package:futapedia/templates/course_template.dart';
 
@@ -17,8 +19,8 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
   List<Map<String, String>> _courseTopics = [];
   String _imagePath = 'assets/animations/course_default.json'; // Default animation
   
-  // Static cache to store course data
-  static final Map<String, Map<String, dynamic>> _courseCache = {};
+  // Create secure storage instance
+  final _secureStorage = const FlutterSecureStorage();
   
   // Cache expiration time in milliseconds (30 days)
   static const int _cacheExpirationDays = 30;
@@ -31,25 +33,39 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
   }
   
   Future<void> _loadCourseData() async {
-    // Check if data for this course is already cached
-    if (_courseCache.containsKey(widget.courseName)) {
-      final cachedData = _courseCache[widget.courseName]!;
-      final cacheTimestamp = cachedData['timestamp'] as int;
-      final currentTime = DateTime.now().millisecondsSinceEpoch;
+    try {
+      // Try to get cached data from secure storage
+      final String? cachedDataJson = await _secureStorage.read(key: 'course_${widget.courseName}');
       
-      // If cache is less than 30 days old, use it
-      if (currentTime - cacheTimestamp < _cacheExpirationMs) {
-        setState(() {
-          _courseTopics = List<Map<String, String>>.from(cachedData['topics']);
-          _imagePath = cachedData['imagePath'] as String;
-          _isLoading = false;
-        });
-        return; // Exit early, no need to fetch from Firestore
+      if (cachedDataJson != null) {
+        // Parse the JSON data
+        final Map<String, dynamic> cachedData = json.decode(cachedDataJson);
+        final int cacheTimestamp = cachedData['timestamp'] as int;
+        final int currentTime = DateTime.now().millisecondsSinceEpoch;
+        
+        // If cache is less than 30 days old, use it
+        if (currentTime - cacheTimestamp < _cacheExpirationMs) {
+          // Extract topics list and convert each item to Map<String, String>
+          final List<dynamic> topicsJson = cachedData['topics'];
+          final List<Map<String, String>> topics = topicsJson
+              .map((topic) => Map<String, String>.from(topic))
+              .toList();
+          
+          setState(() {
+            _courseTopics = topics;
+            _imagePath = cachedData['imagePath'] as String;
+            _isLoading = false;
+          });
+          return; // Exit early, no need to fetch from Firestore
+        }
+        
+        // Cache is expired, remove it
+        await _secureStorage.delete(key: 'course_${widget.courseName}');
+        print("Cache expired for ${widget.courseName}, fetching fresh data");
       }
-      
-      // Cache is expired, remove it
-      _courseCache.remove(widget.courseName);
-      print("Cache expired for ${widget.courseName}, fetching fresh data");
+    } catch (e) {
+      print("Error reading from secure storage: $e");
+      // Continue to fetch data if there's an error with the cache
     }
     
     // If not cached or cache expired, fetch from Firestore
@@ -68,14 +84,23 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
       
       // Determine level from course name
       String level;
-      if (widget.courseName.contains("3")) {
+
+      if (["50", "51", "52", "53", "54", "55", "56", "57", "58", "59"]
+          .any((e) => widget.courseName.contains(e))) {
+        level = "500L";
+      } else if (["40", "41", "42", "43", "44", "45", "46", "47", "48", "49"]
+          .any((e) => widget.courseName.contains(e))) {
+        level = "400L";
+      } else if (["30", "31", "32", "33", "34", "35", "36", "37", "38", "39"]
+          .any((e) => widget.courseName.contains(e))) {
         level = "300L";
-      } else if (widget.courseName.contains("2")) {
+      } else if (["20", "21", "22", "23", "24", "25", "26", "27", "28", "29"]
+          .any((e) => widget.courseName.contains(e))) {
         level = "200L";
       } else {
         level = "100L";
       }
-      
+
       // Fetch the document for this course
       final DocumentSnapshot courseDoc = await FirebaseFirestore.instance
           .collection('Semester')
@@ -153,12 +178,18 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
         return aNumber.compareTo(bNumber);
       });
       
-      // Save to cache with timestamp
-      _courseCache[widget.courseName] = {
+      // Save to secure storage with timestamp
+      final Map<String, dynamic> cacheData = {
         'topics': formattedTopics,
         'imagePath': imagePath,
         'timestamp': DateTime.now().millisecondsSinceEpoch, // Add current timestamp
       };
+      
+      // Convert to JSON and store
+      await _secureStorage.write(
+        key: 'course_${widget.courseName}',
+        value: json.encode(cacheData),
+      );
       
       // Check if widget is still mounted before calling setState
       if (mounted) {
@@ -189,7 +220,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
     }
     
     // Remove from cache
-    _courseCache.remove(widget.courseName);
+    await _secureStorage.delete(key: 'course_${widget.courseName}');
     
     // Fetch fresh data
     await _fetchCourseData();

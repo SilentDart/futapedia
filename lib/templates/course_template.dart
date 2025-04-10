@@ -180,13 +180,15 @@ class _CourseTemplateState extends State<CourseTemplate> {
     widget.onRefresh!();
     
     // Show feedback to user
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Center(child: const Text("Refreshing course content")),
-        duration: const Duration(milliseconds: 600),
-        backgroundColor: Colors.grey[900],
-      ),
-    );
+    if(mounted){
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Center(child: const Text("Refreshing course content")),
+          duration: const Duration(milliseconds: 600),
+          backgroundColor: Colors.grey[900],
+        ),
+      );
+    }
     
     // Reset refreshing state after a delay
     Future.delayed(const Duration(seconds: 2), () {
@@ -209,6 +211,7 @@ class _CourseTemplateState extends State<CourseTemplate> {
       RewardedAd? availableAd = getAvailableAd();
       
       if (availableAd == null) {
+        if(!mounted) return;
         // If no ad is available, provide better user feedback
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -266,6 +269,10 @@ class _CourseTemplateState extends State<CourseTemplate> {
     
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+            icon: Icon(Icons.chevron_left, size: 35,),
+            onPressed: () => Navigator.pop(context),
+        ),
         backgroundColor: selectedColor,
         title: Text(
           widget.username,
