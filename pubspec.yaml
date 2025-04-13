@@ -77,6 +77,8 @@ dependencies:
   firebase_crashlytics: ^4.3.5
   timezone: ^0.10.0
   intl: ^0.20.2
+  flutter_lints: ^5.0.0
+  awesome_notifications: ^0.10.1
   
   # firebase_app_check: ^0.3.2+3
 
@@ -89,7 +91,6 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

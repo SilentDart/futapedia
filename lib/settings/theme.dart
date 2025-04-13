@@ -30,15 +30,9 @@ class ThemeColorManager {
     'Green': Colors.green,
     'Grey': Colors.grey,
     'Orange': Colors.orange,
-    'Red': Colors.red,
     'Yellow': Colors.yellow,
-    'Purple': Colors.purple,
-    'Pink': Colors.pink,
     'Cyan': Colors.cyan,
     'Teal': Colors.teal,
-    'Lime': Colors.lime,
-    'Indigo': Colors.indigo,
-    'Amber': Colors.amber,
   };
   
   static Future<MaterialColor> getSavedColor() async {

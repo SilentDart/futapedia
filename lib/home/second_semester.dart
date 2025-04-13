@@ -144,6 +144,12 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
   final String _level300CacheKey = "cached_courses_300L";
   final int _cacheDurationDays = 30; // 30-day cache expiration
 
+  //Search Functionality
+  List<String> _allCourses = [];
+  List<String> _searchResults = [];
+  TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
+
   // Lists for storing courses fetched from Firestore
   List<String> level100Courses = [];
   List<String> level200Courses = [];
@@ -186,6 +192,7 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
         }
       }
     });
+    _searchController = TextEditingController();
   }
 
   void _loadThemeColor() async {
@@ -437,8 +444,10 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
     setState(() {
       courseRoutes = routes;
     });
+
+    _combineCourseLists();
     
-    print("Built ${routes.length} course routes");
+    // print("Built ${routes.length} course routes");
   }
   
   // Manually refresh data
@@ -484,6 +493,36 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
     }
   }
 
+
+  //Search functionality
+  // Method to combine course lists in initState
+  void _combineCourseLists() {
+    _allCourses = [
+      ...level100Courses,
+      ...level200Courses,
+      ...level300Courses,
+    ];
+  }
+
+  // Method to perform search
+  void _performSearch(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        _isSearching = false;
+        _searchResults.clear();
+      });
+      return;
+    }
+
+    final results = _allCourses.where((course) => 
+      course.toLowerCase().contains(query.toLowerCase())).toList();
+    
+    setState(() {
+      _isSearching = true;
+      _searchResults = results;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
 
@@ -513,37 +552,48 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
                       const SizedBox(height: 20),
                       _buildSearchBar(),
                       const SizedBox(height: 20),
-                      _buildSectionHeader("🔥 Trending Courses", showRefreshButton: true),
-                      _buildHorizontalCourseList(),
-                      const SizedBox(height: 20),
+                      _isSearching
+                        ? _buildSearchResultsWidget()
+
+                        :Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+
+                            _buildSectionHeader("🔥 Trending Courses", showRefreshButton: true),
+                            _buildHorizontalCourseList(),
+                            const SizedBox(height: 20),
+                            
+                            
+                            const SizedBox(height: 20),
+                            _buildSectionTitle("    📚 100L Tutorial Videos"),
+                            const SizedBox(height: 10),
+                            level100Courses.isEmpty
+                              ? _buildEmptyCoursesMessage("No 100 Level courses available")
+                              : _buildCourseGrid(level100Courses),
+                            
+                            _firstNativeAd,
+                            SizedBox(height:30),
+                            _buildSectionTitle("    📚 200L Tutorial Videos"),
+                            const SizedBox(height: 10),
+                            level200Courses.isEmpty
+                              ? _buildEmptyCoursesMessage("No 200 Level courses available")
+                              : _buildCourseGrid(level200Courses),
+                            
+                            SizedBox(height:20),
+                            _secondNativeAd,
+                            SizedBox(height:30),
+                            
+                            _buildSectionTitle("    📚 300L Tutorial Videos"),
+                            const SizedBox(height: 10),
+                            level300Courses.isEmpty
+                              ? _buildEmptyCoursesMessage("No 300 Level courses available")
+                              : _buildCourseGrid(level300Courses),
+                            
+                            SizedBox(height:20),
+                            _thirdNativeAd,
+                          ],
+                        ),
                       
-                      const SizedBox(height: 20),
-                      _buildSectionTitle("    📚 100L Tutorial Videos"),
-                      const SizedBox(height: 10),
-                      level100Courses.isEmpty
-                        ? _buildEmptyCoursesMessage("No 100 Level courses available")
-                        : _buildCourseGrid(level100Courses),
-                      
-                      _firstNativeAd,
-                      SizedBox(height:20),
-                      _buildSectionTitle("    📚 200L Tutorial Videos"),
-                      const SizedBox(height: 10),
-                      level200Courses.isEmpty
-                        ? _buildEmptyCoursesMessage("No 200 Level courses available")
-                        : _buildCourseGrid(level200Courses),
-                      
-                      SizedBox(height:20),
-                      _secondNativeAd,
-                      SizedBox(height:20),
-                      
-                      _buildSectionTitle("    📚 300L Tutorial Videos"),
-                      const SizedBox(height: 10),
-                      level300Courses.isEmpty
-                        ? _buildEmptyCoursesMessage("No 300 Level courses available")
-                        : _buildCourseGrid(level300Courses),
-                      
-                      SizedBox(height:20),
-                      _thirdNativeAd,
                       
                       // Cache info text
                       _buildCacheInfo(),
@@ -650,6 +700,35 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
       }
     );
   }
+
+  //Search results widget
+  Widget _buildSearchResultsWidget() {
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Text(
+            "No courses found matching '${_searchController.text}'",
+            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+          ),
+        ),
+      );
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10.0),
+          child: Text(
+            "Search Results (${_searchResults.length})",
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+        _buildCourseGrid(_searchResults),
+      ],
+    );
+  }
   
 
   Widget _buildHeader() {
@@ -711,10 +790,10 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
 
   Widget _buildSearchBar() {
     return FutureBuilder<Color>(
-      future: ThemeColorManager.getSavedColorWithShade(), // Using a slightly darker shade for text
+      future: ThemeColorManager.getSavedColorWithShade(),
       builder: (context, snapshot) {
         // Default color while loading
-        final Color themeColor= snapshot.hasData ? snapshot.data! : Colors.black;
+        final Color themeColor = snapshot.hasData ? snapshot.data! : Colors.black;
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -726,10 +805,22 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
             ],
           ),
           child: TextField(
+            controller: _searchController,
+            onChanged: _performSearch,
             decoration: InputDecoration(
               hintText: "Search courses...",
               border: InputBorder.none,
               icon: Icon(Icons.search, color: themeColor),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(Icons.clear, color: themeColor),
+                      onPressed: () {
+                        _searchController.clear();
+                        _performSearch("");
+                        FocusScope.of(context).unfocus();
+                      },
+                    )
+                  : null,
             ),
           ),
         );

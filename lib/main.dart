@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:developer';
 
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:futapedia/firebase_services.dart/auth.dart';
 import 'package:futapedia/firebase_services.dart/user.dart';
+import 'package:futapedia/notification/notification_controller.dart';
 import 'package:futapedia/remote_config.dart/app_update.dart';
 import 'package:futapedia/settings/theme.dart';
 import 'package:futapedia/settings/theme_provider.dart';
@@ -15,65 +17,78 @@ import 'package:provider/provider.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:screen_protector/screen_protector.dart';
 
-void main() async {
+Future<void> main() async {
   // Catch top-level errors
   FlutterError.onError = (FlutterErrorDetails details) {
     // Log to crash analytics service
     FirebaseCrashlytics.instance.recordFlutterError(details);
   };
-
+  
   // Set up zone to catch async errors
   runZonedGuarded(() async {
     // Initialize Flutter binding
     WidgetsFlutterBinding.ensureInitialized();
     
+    // Initialize scheduler notifications
+    await initializeNotifications();
+    
     // Initialize critical services first with proper error handling
     try {
       await Firebase.initializeApp();
     } catch (e, stackTrace) {
-      // log('Firebase initialization failed', error: e, stackTrace: stackTrace);
       FirebaseCrashlytics.instance.recordError(e, stackTrace, reason: 'Firebase Init Error');
-      // Show graceful fallback or disable Firebase-dependent features
     }
     
     // Initialize remaining services
     try {
       await Future.wait([
-
-        // MobileAds.instance.initialize().catchError((e, stackTrace) {
-
-        //   // log('Ad initialization failed', error: e, stackTrace: stackTrace);
-          
-        //   FirebaseCrashlytics.instance.recordError(e, stackTrace, reason: 'Ads Init Error');
-        //   return InitializationStatus({}); // Continue initialization process despite ads failure
-          
-        // }),
-
         _initializeSecurityFeatures(),
-
         Future(() => ThemeColorManager.initCachedColor())
             .timeout(const Duration(seconds: 3), onTimeout: () {
-          // log('Theme initialization timed out, using defaults');
           return null; // Use default theme
         }),
       ]);
     } catch (e, stackTrace) {
-
-      // log('Non-critical initialization error', error: e, stackTrace: stackTrace);
-
       FirebaseCrashlytics.instance.recordError(e, stackTrace, reason: 'Init Error');
-      // Continue with app launch
     }
+    
     await MobileAds.instance.initialize();
-    // Cache clearing can be deferred until after app launch
-    // _clearCachesIfNeeded();
     
     runApp(MyApp());
-    
   }, (error, stackTrace) {
-    // Handle exceptions thrown outside of the Flutter framework
-    // log('Unhandled error', error: error, stackTrace: stackTrace);
     FirebaseCrashlytics.instance.recordError(error, stackTrace, reason: 'Unhandled Error');
+  });
+}
+
+// Add this notification initialization function
+Future<void> initializeNotifications() async {
+  await AwesomeNotifications().initialize(
+    null,
+    [
+      NotificationChannel(
+        channelKey: 'scheduled_channel',
+        channelName: 'Scheduled Notifications',
+        channelDescription: 'Channel for scheduled notifications',
+        defaultColor: Colors.blue,
+        ledColor: Colors.blue,
+        importance: NotificationImportance.High,
+        locked: false,
+        defaultRingtoneType: DefaultRingtoneType.Notification,
+        soundSource: 'resource://raw/notification_sound',
+        enableVibration: true,
+      )
+    ],
+    debug: true,
+  );
+  
+  // Register notification action handler
+  AwesomeNotifications().setListeners(
+    onActionReceivedMethod: NotificationController.onActionReceivedMethod,
+  );
+  
+  // Check notification permissions (but don't prompt right away)
+  await AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
+    // We'll handle requesting permissions on the scheduler page
   });
 }
 
@@ -90,9 +105,12 @@ Future<void> _initializeSecurityFeatures() async {
   }
 }
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
 
   @override
   Widget build(BuildContext context) {

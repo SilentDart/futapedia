@@ -1,15 +1,27 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 
+// --- Main Function ---
+void main() async {
+  // Ensure Flutter bindings are initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize the reminder manager (includes permission checks/requests)
+  await StudyReminderManager().initialize();
+
+  // Run the app
+  runApp(const StudyReminderApp());
+}
+
+// --- Enums and Extensions ---
 enum RepeatInterval {
   daily,
   weekly,
@@ -26,17 +38,51 @@ extension RepeatIntervalExtension on RepeatInterval {
       case RepeatInterval.none: return 'One-time';
     }
   }
-  
-  DateTimeComponents? get dateTimeComponents {
-    switch (this) {
-      case RepeatInterval.daily: return DateTimeComponents.time;
-      case RepeatInterval.weekly: return DateTimeComponents.dayOfWeekAndTime;
-      case RepeatInterval.monthly: return DateTimeComponents.dayOfMonthAndTime;
-      case RepeatInterval.none: return null;
+
+  // Get NotificationRepeatInterval for Awesome Notifications
+  NotificationCalendar getAwesomeSchedule(RepeatInterval interval) {
+    final now = DateTime.now();
+
+    switch (interval) {
+      case RepeatInterval.daily:
+        return NotificationCalendar(
+          hour: now.hour,
+          minute: now.minute,
+          second: now.second,
+          repeats: true,
+        );
+      case RepeatInterval.weekly:
+        return NotificationCalendar(
+          weekday: now.weekday,
+          hour: now.hour,
+          minute: now.minute,
+          second: now.second,
+          repeats: true,
+        );
+      case RepeatInterval.monthly:
+        return NotificationCalendar(
+          day: now.day,
+          hour: now.hour,
+          minute: now.minute,
+          second: now.second,
+          repeats: true,
+        );
+      case RepeatInterval.none:
+      return NotificationCalendar(
+          year: now.year,
+          month: now.month,
+          day: now.day,
+          hour: now.hour,
+          minute: now.minute,
+          second: now.second,
+          repeats: false,
+        );
     }
   }
+
 }
 
+// --- Data Class ---
 class StudyReminderNotification {
   final int id;
   final String title;
@@ -44,7 +90,7 @@ class StudyReminderNotification {
   final DateTime scheduledTime;
   final bool isRepeating;
   final RepeatInterval repeatInterval;
-  final String? subjectColor; // Added for color coding subjects
+  final String? subjectColor;
 
   StudyReminderNotification({
     required this.id,
@@ -75,194 +121,258 @@ class StudyReminderNotification {
       message: map['message'],
       scheduledTime: DateTime.fromMillisecondsSinceEpoch(map['scheduledTime']),
       isRepeating: map['isRepeating'] ?? false,
-      repeatInterval: map['repeatInterval'] != null 
-          ? RepeatInterval.values[map['repeatInterval']] 
+      repeatInterval: map['repeatInterval'] != null
+          ? RepeatInterval.values[map['repeatInterval']]
           : RepeatInterval.none,
       subjectColor: map['subjectColor'],
     );
   }
-  
-  // Helper to get color based on stored hex value
+
   Color get color {
     if (subjectColor == null) return Colors.blue;
     try {
-      return Color(int.parse(subjectColor!.replaceAll('#', '0xff')));
+      final hex = subjectColor!.replaceAll('#', '');
+      if (hex.length == 6) {
+        return Color(int.parse('0xff$hex'));
+      } else if (hex.length == 8) {
+        return Color(int.parse('0x$hex'));
+      }
+      return Colors.blue;
     } catch (e) {
+      debugPrint("Error parsing color: $subjectColor, Error: $e");
       return Colors.blue;
     }
   }
-  
-  // Check if the reminder is active based on its scheduled time and repeat settings
+
   bool get isActive {
     if (isRepeating) return true;
+    // Check if the one-time scheduled time is in the future
     return scheduledTime.isAfter(DateTime.now());
   }
-  
-  // Returns a formatted string of the time
+
   String get formattedTime {
-    final hour = scheduledTime.hour.toString().padLeft(2, '0');
-    final minute = scheduledTime.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
+    return DateFormat('h:mm a').format(scheduledTime);
   }
-  
-  // Returns a formatted string of the date
+
   String get formattedDate {
-    final day = scheduledTime.day.toString().padLeft(2, '0');
-    final month = scheduledTime.month.toString().padLeft(2, '0');
-    return '$day/$month/${scheduledTime.year}';
+     return DateFormat('MMM d, y').format(scheduledTime);
+  }
+
+  String get repeatingInfo {
+    if (!isRepeating) return 'One-time';
+    return repeatInterval.friendlyName;
   }
 }
 
+// --- Reminder Management Logic ---
 class StudyReminderManager {
   static final StudyReminderManager _instance = StudyReminderManager._internal();
   factory StudyReminderManager() => _instance;
-  
-  late FlutterLocalNotificationsPlugin _notificationsPlugin;
+
   final List<StudyReminderNotification> _scheduledReminders = [];
-  final String _storageKey = 'scheduled_reminders_v2'; // Updated key to avoid conflicts
-  
-  // Improved reminder templates with more student-focused content
+  final String _storageKey = 'scheduled_reminders_v2';
+
   final List<Map<String, dynamic>> reminderTemplates = [
-    {
-      'title': 'Study Session',
-      'message': 'Time to focus! Your planned study session is starting now.',
-      'color': '#4285F4' // Blue
-    },
-    {
-      'title': 'Test Prep',
-      'message': 'Don\'t forget to review your notes for the upcoming test!',
-      'color': '#EA4335' // Red
-    },
-    {
-      'title': 'Study Break',
-      'message': 'Study break time - take 5 minutes to refresh your mind.',
-      'color': '#34A853' // Green
-    },
-    {
-      'title': 'Assignment Deadline',
-      'message': 'Quick reminder to check your assignment deadlines.',
-      'color': '#FBBC05' // Yellow
-    },
-    {
-      'title': 'Focus Time',
-      'message': 'Time for your scheduled study session. You\'ve got this!',
-      'color': '#9C27B0' // Purple
-    },
-    {
-      'title': 'Reading Session',
-      'message': 'Time to complete your assigned reading for class.',
-      'color': '#FF9800' // Orange
-    },
-    {
-      'title': 'Group Study',
-      'message': 'Your group study session is about to begin.',
-      'color': '#795548' // Brown
-    },
+    {'title': 'Study Session', 'message': 'Time to focus! Your planned study session is starting now.', 'color': '#4285F4'},
+    {'title': 'Test Prep', 'message': 'Don\'t forget to review your notes for the upcoming test!', 'color': '#EA4335'},
+    {'title': 'Study Break', 'message': 'Study break time - take 5 minutes to refresh your mind.', 'color': '#34A853'},
+    {'title': 'Assignment Deadline', 'message': 'Quick reminder to check your assignment deadlines.', 'color': '#FBBC05'},
+    {'title': 'Focus Time', 'message': 'Time for your scheduled study session. You\'ve got this!', 'color': '#9C27B0'},
+    {'title': 'Reading Session', 'message': 'Time to complete your assigned reading for class.', 'color': '#FF9800'},
+    {'title': 'Group Study', 'message': 'Your group study session is about to begin.', 'color': '#795548'},
   ];
 
-  // Stream controller to notify listeners of changes
   final _reminderStreamController = StreamController<List<StudyReminderNotification>>.broadcast();
   Stream<List<StudyReminderNotification>> get remindersStream => _reminderStreamController.stream;
 
+  Timer? _cleanupTimer;
   StudyReminderManager._internal();
-  
+
   Future<void> initialize() async {
-  // Initialize timezone data
-  tz_data.initializeTimeZones();
-  final local = tz.local;
-  tz.setLocalLocation(local);
-  
-  // Initialize notification plugin
-  _notificationsPlugin = FlutterLocalNotificationsPlugin();
-  
-  // Request notification permissions
-  // final AndroidFlutterLocalNotificationsPlugin? androidPlugin = 
-  //     _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-  
-  // // Request notification permission
-  // await androidPlugin?.requestPermission();
-  
-  // For iOS, permissions are part of the initialization settings
-  const iosSettings = DarwinInitializationSettings(
-    requestAlertPermission: true,
-    requestBadgePermission: true,
-    requestSoundPermission: true,
-    requestCriticalPermission: true, // Request critical alerts if needed
-  );
-  
-  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-  
-  await _notificationsPlugin.initialize(
-    const InitializationSettings(android: androidSettings, iOS: iosSettings),
-    onDidReceiveNotificationResponse: _handleNotificationResponse,
-  );
-  
-  // Load saved reminders
-  await _loadReminders();
-}
-  
-  void _handleNotificationResponse(NotificationResponse response) {
-    if (response.payload == null) return;
-    
+    tz_data.initializeTimeZones();
     try {
-      final data = jsonDecode(response.payload!);
-      final id = data['id'];
-      final action = response.actionId;
-      
-      if (action == 'snooze') {
-        _snoozeReminder(id);
-      } else if (action == 'dismiss') {
-        _dismissReminder(id);
-      }
+      // Use the IANA identifier for Nigeria (WAT)
+      final location = tz.getLocation('Africa/Lagos');
+      tz.setLocalLocation(location);
+      debugPrint("Timezone set to: ${tz.local.name}");
     } catch (e) {
-      debugPrint('Error handling notification response: $e');
+      debugPrint("Error setting local location: $e. Using default local.");
+      tz.setLocalLocation(tz.local); // Fallback
+    }
+
+    // Initialize Awesome Notifications
+    await AwesomeNotifications().initialize(
+      // Set the default notification icon if needed
+      'resource://drawable/ic_notification', 
+      [
+        NotificationChannel(
+          channelGroupKey: 'study_reminder_group',
+          channelKey: 'study_reminders_channel_id_v1',
+          channelName: 'Study Reminders',
+          channelDescription: 'Notifications for scheduled study sessions and deadlines',
+          defaultColor: Colors.indigo,
+          ledColor: Colors.white,
+          importance: NotificationImportance.High,
+          defaultPrivacy: NotificationPrivacy.Public,
+          // defaultRingtoneType: DefaultRingtoneType.Notification,
+          enableVibration: true,
+          // Add additional channel configurations as needed
+        ),
+        NotificationChannel(
+          channelGroupKey: 'study_reminder_group',
+          channelKey: 'snooze_channel_id_v1',
+          channelName: 'Snoozed Reminders',
+          channelDescription: 'Notifications for snoozed study reminders',
+          defaultColor: Colors.orange,
+          ledColor: Colors.white,
+          importance: NotificationImportance.High
+        )
+      ],
+      // Optional: Channel groups if you want to organize your notifications
+      channelGroups: [
+        NotificationChannelGroup(
+          channelGroupKey: 'study_reminder_group',
+          channelGroupName: 'Study Reminders'
+        )
+      ],
+      debug: true
+    );
+
+    // Request permissions
+    await _requestNotificationPermissions();
+
+    // Set global action handler for background actions
+    AwesomeNotifications().setListeners(
+      onActionReceivedMethod: _handleNotificationAction,
+    );
+    await _loadReminders();
+    _startCleanupTimer();
+  }
+
+  Future<void> _requestNotificationPermissions() async {
+    // Request notification permissions
+    await AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
+      if (!isAllowed) {
+        AwesomeNotifications().requestPermissionToSendNotifications();
+      }
+    });
+
+    // For Android 13+, request precise scheduling permissions
+    if (Platform.isAndroid) {
+      await Permission.scheduleExactAlarm.request();
     }
   }
-  
+
+  Future<void> _handleNotificationAction(ReceivedAction receivedAction) async {
+    debugPrint('Notification action received: ${receivedAction.actionType} - ${receivedAction.payload}');
+    
+    if (receivedAction.actionType == ActionType.SilentAction || 
+        receivedAction.actionType == ActionType.SilentBackgroundAction) {
+      // Handle background actions here
+      if (receivedAction.buttonKeyPressed == 'snooze') {
+        _snoozeReminder(int.parse(receivedAction.payload?['id'] ?? '0'));
+      } else if (receivedAction.buttonKeyPressed == 'dismiss') {
+        _dismissReminder(int.parse(receivedAction.payload?['id'] ?? '0'));
+      }
+    } else {
+      // Default tap action
+      debugPrint('Notification tapped (default action) for ID: ${receivedAction.payload?['id'] ?? 'unknown'}');
+    }
+  }
+
   Future<void> _loadReminders() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedReminders = prefs.getStringList(_storageKey) ?? [];
-      
       _scheduledReminders.clear();
+
       for (final reminderJson in savedReminders) {
         try {
           final map = jsonDecode(reminderJson) as Map<String, dynamic>;
-          _scheduledReminders.add(StudyReminderNotification.fromMap(map));
+          final reminder = StudyReminderNotification.fromMap(map);
+          if (reminder.isActive) { // Only load active reminders
+             _scheduledReminders.add(reminder);
+          } else {
+            debugPrint("Filtered out past/inactive reminder on load: ID ${reminder.id}");
+          }
         } catch (e) {
-          debugPrint('Error loading reminder: $e');
+          debugPrint('Error loading individual reminder: $e');
         }
       }
-      
-      // Re-schedule all existing reminders (for app restarts)
-      for (final reminder in _scheduledReminders) {
-        if (reminder.isActive) {
-          await _scheduleNotification(reminder);
-        }
-      }
-      
-      // Notify listeners
-      _reminderStreamController.add(_scheduledReminders);
+      // Sort reminders by time for display consistency
+      _scheduledReminders.sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
+
+      _notifyListeners();
+      debugPrint('Loaded ${_scheduledReminders.length} active reminders.');
+      // Re-schedule after loading (essential for persistence after restart)
+      await _rescheduleActiveReminders();
     } catch (e) {
       debugPrint('Error in _loadReminders: $e');
     }
   }
-  
+
+  Future<void> _rescheduleActiveReminders() async {
+    int rescheduledCount = 0;
+    // Create a copy to iterate over, as scheduling might involve async gaps
+    List<StudyReminderNotification> currentActive = List.from(_scheduledReminders);
+    debugPrint("Attempting to re-schedule ${currentActive.length} loaded reminders...");
+    for (final reminder in currentActive) {
+      if (reminder.isActive) { // Double check activity status
+        bool success = await _scheduleNotification(reminder);
+        if (success) rescheduledCount++;
+        // Optional delay if needed
+        // await Future.delayed(Duration(milliseconds: 20));
+      }
+    }
+    debugPrint("Finished re-scheduling. $rescheduledCount reminders successfully re-scheduled.");
+  }
+
+  void _startCleanupTimer() {
+    _cleanupTimer?.cancel();
+    // Run cleanup periodically (e.g., every hour) and once on startup
+    _cleanupTimer = Timer.periodic(const Duration(hours: 1), (_) => _cleanupPastReminders());
+    _cleanupPastReminders();
+  }
+
+  Future<void> _cleanupPastReminders() async {
+    bool changed = false;
+    _scheduledReminders.removeWhere((reminder) {
+      if (!reminder.isRepeating && reminder.scheduledTime.isBefore(DateTime.now())) {
+        debugPrint("Cleaning up past non-repeating reminder ID: ${reminder.id}");
+        // No need to cancel notification here, it should be past
+        changed = true;
+        return true;
+      }
+      return false;
+    });
+    if (changed) {
+      await _saveReminders(); // Save the cleaned list
+    }
+  }
+
   Future<void> _saveReminders() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      // Sort before saving to maintain order potentially
+      _scheduledReminders.sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
       final reminderJsonList = _scheduledReminders
           .map((reminder) => jsonEncode(reminder.toMap()))
           .toList();
       await prefs.setStringList(_storageKey, reminderJsonList);
-      
-      // Notify listeners
-      _reminderStreamController.add(_scheduledReminders);
+      _notifyListeners(); // Notify after saving
+      debugPrint('Saved ${_scheduledReminders.length} reminders.');
     } catch (e) {
       debugPrint('Error in _saveReminders: $e');
     }
   }
-  
+
+  void _notifyListeners() {
+    // Ensure list passed to stream is unmodifiable and sorted
+    final sortedList = List<StudyReminderNotification>.from(_scheduledReminders)
+      ..sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
+    _reminderStreamController.add(List.unmodifiable(sortedList));
+  }
+
   Future<bool> scheduleStudyReminder({
     required String title,
     required String message,
@@ -271,14 +381,19 @@ class StudyReminderManager {
     RepeatInterval repeatInterval = RepeatInterval.none,
     String? subjectColor,
   }) async {
-    // Don't allow scheduling in the past for non-repeating reminders
-    if (scheduledTime.isBefore(DateTime.now()) && !isRepeating) {
+    if (!isRepeating && scheduledTime.isBefore(DateTime.now())) {
+      debugPrint('Cannot schedule one-time reminder in the past.');
       return false;
     }
-    
-    // Generate a unique ID
-    final id = DateTime.now().microsecondsSinceEpoch % 100000;
-    
+
+    bool permissionsOk = await _checkExactAlarmPermission();
+    if (!permissionsOk) {
+      debugPrint("Cannot schedule: Exact Alarm permission not granted.");
+      // Consider triggering UI feedback or permission request from the calling widget
+      return false;
+    }
+
+    final id = DateTime.now().microsecondsSinceEpoch % 2147483647;
     final reminder = StudyReminderNotification(
       id: id,
       title: title,
@@ -288,166 +403,309 @@ class StudyReminderManager {
       repeatInterval: isRepeating ? repeatInterval : RepeatInterval.none,
       subjectColor: subjectColor,
     );
-    
-    // Add to our tracking list
+
     _scheduledReminders.add(reminder);
-    await _saveReminders();
-    
-    // Schedule the actual notification
-    return await _scheduleNotification(reminder);
+    await _saveReminders(); // Save includes notifyListeners
+
+    bool scheduled = await _scheduleNotification(reminder);
+    if (!scheduled) {
+      debugPrint("Scheduling failed for ID: ${reminder.id}. Removing from list.");
+      _scheduledReminders.removeWhere((r) => r.id == id);
+      await _saveReminders(); // Save again after removal
+      return false;
+    }
+    debugPrint("Successfully scheduled and saved reminder ID: ${reminder.id}");
+    return true;
   }
-  
+
+  NotificationCalendar getRepeatCalendar(DateTime time, RepeatInterval repeat) {
+    switch (repeat) {
+      case RepeatInterval.daily:
+        return NotificationCalendar(
+          hour: time.hour,
+          minute: time.minute,
+          second: 0,
+          repeats: true,
+          preciseAlarm: true,
+        );
+      case RepeatInterval.weekly:
+        return NotificationCalendar(
+          weekday: time.weekday,
+          hour: time.hour,
+          minute: time.minute,
+          second: 0,
+          repeats: true,
+          preciseAlarm: true,
+        );
+      case RepeatInterval.monthly:
+        return NotificationCalendar(
+          day: time.day,
+          hour: time.hour,
+          minute: time.minute,
+          second: 0,
+          repeats: true,
+          preciseAlarm: true,
+        );
+      case RepeatInterval.none:
+      // default:
+        return NotificationCalendar.fromDate(
+          date: time,
+          preciseAlarm: true,
+        );
+    }
+  }
+
+
+  Future<bool> _checkExactAlarmPermission() async {
+    if (Platform.isAndroid) {
+      // This permission is needed for scheduleExactAllowWhileIdle on Android 12+
+      // Use permission_handler
+      var status = await Permission.scheduleExactAlarm.status;
+      debugPrint("Exact Alarm Permission Status: $status");
+      return status.isGranted;
+    }
+    return true; // Not applicable or handled differently on iOS
+  }
+
   Future<bool> _scheduleNotification(StudyReminderNotification reminder) async {
     try {
-      // Define notification details
-      final androidDetails = AndroidNotificationDetails(
-        'study_reminders_channel',
-        'Study Reminders',
-        channelDescription: 'Notifications for scheduled study sessions',
-        importance: Importance.high,
-        priority: Priority.high,
-        color: reminder.color,
-        icon: '@mipmap/ic_launcher',
-        sound: const RawResourceAndroidNotificationSound('study_bell'),
-        actions: [
-          const AndroidNotificationAction(
-            'snooze',
-            'Snooze 10 min',
-            showsUserInterface: false,
-          ),
-          const AndroidNotificationAction(
-            'dismiss',
-            'Mark Done',
-            showsUserInterface: false,
-          ),
-        ],
-      );
+      // Cancel any existing notification with the same ID
+      await AwesomeNotifications().cancel(reminder.id);
+
+      // Check if one-time and in the past
+      if (!reminder.isRepeating && reminder.scheduledTime.isBefore(DateTime.now())) {
+        debugPrint("Skipping schedule for past non-repeating reminder ID ${reminder.id}");
+        return false;
+      }
+
+      // Convert color to integer format
+      // int colorInt = reminder.color.value;
       
-      // Define iOS-specific details
-      const iosDetails = DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-        sound: 'study_bell.aiff',
-      );
-      
-      final notificationDetails = NotificationDetails(
-        android: androidDetails,
-        iOS: iosDetails,
-      );
-      
-      final payload = jsonEncode({
-        'id': reminder.id,
+      // Convert to payload for action buttons
+      Map<String, String> payload = {
+        'id': reminder.id.toString(),
         'title': reminder.title,
-        'message': reminder.message,
-      });
+      };
+
+      // Prepare notification
+      bool scheduled;
       
       if (reminder.isRepeating) {
-        // For repeating notifications, we use zonedSchedule with matchDateTimeComponents
-        final scheduledDate = tz.TZDateTime.from(reminder.scheduledTime, tz.local);
-        
-        await _notificationsPlugin.zonedSchedule(
-          reminder.id,
-          reminder.title,
-          reminder.message,
-          scheduledDate,
-          notificationDetails,
-          payload: payload,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          matchDateTimeComponents: reminder.repeatInterval.dateTimeComponents,
+        // For repeating notifications
+        scheduled = await AwesomeNotifications().createNotification(
+          content: NotificationContent(
+            id: reminder.id,
+            channelKey: 'study_reminders_channel_id_v1',
+            title: reminder.title,
+            body: reminder.message,
+            category: NotificationCategory.Reminder,
+            notificationLayout: NotificationLayout.Default,
+            // color: ,
+            payload: payload,
+            wakeUpScreen: true,
+          ),
+          schedule: getRepeatCalendar(reminder.scheduledTime, reminder.repeatInterval),
+
+          actionButtons: [
+            NotificationActionButton(
+              key: 'dismiss',
+              label: 'Dismiss',
+              actionType: ActionType.SilentBackgroundAction,
+              isDangerousOption: false
+            ),
+            NotificationActionButton(
+              key: 'snooze',
+              label: 'Snooze 10 min',
+              actionType: ActionType.SilentBackgroundAction,
+              isDangerousOption: false
+            ),
+          ]
         );
+        
+        debugPrint("Scheduled REPEATING ID ${reminder.id} for ${reminder.scheduledTime}, interval: ${reminder.repeatInterval.friendlyName}");
       } else {
         // For one-time notifications
-        final scheduledDate = tz.TZDateTime.from(reminder.scheduledTime, tz.local);
-        
-        await _notificationsPlugin.zonedSchedule(
-          reminder.id,
-          reminder.title,
-          reminder.message,
-          scheduledDate, // This should be a tz.TZDateTime object
-          notificationDetails,
-          payload: payload,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          // Replace uiLocalNotificationDateInterpretation with matchDateTimeComponents for iOS/macOS
-          matchDateTimeComponents: DateTimeComponents.time, // Or .dayOfWeekAndTime, etc., depending on recurrence
+        scheduled = await AwesomeNotifications().createNotification(
+          content: NotificationContent(
+            id: reminder.id,
+            channelKey: 'study_reminders_channel_id_v1',
+            title: reminder.title,
+            body: reminder.message,
+            category: NotificationCategory.Reminder,
+            notificationLayout: NotificationLayout.Default,
+            // color: colorInt,
+            payload: payload,
+            wakeUpScreen: true,
+          ),
+          schedule: NotificationCalendar.fromDate(
+            date: reminder.scheduledTime,
+            preciseAlarm: true, // Use precise alarm when possible
+          ),
+          actionButtons: [
+            NotificationActionButton(
+              key: 'dismiss',
+              label: 'Dismiss',
+              actionType: ActionType.SilentBackgroundAction,
+              isDangerousOption: false
+            ),
+            NotificationActionButton(
+              key: 'snooze',
+              label: 'Snooze 10 min',
+              actionType: ActionType.SilentBackgroundAction,
+              isDangerousOption: false
+            ),
+          ]
         );
+        
+        debugPrint("Scheduled ONE-TIME ID ${reminder.id} for ${reminder.scheduledTime}");
       }
       
-      return true;
+      return scheduled;
     } catch (e) {
-      debugPrint('Error scheduling notification: $e');
+      debugPrint('Error _scheduleNotification ID ${reminder.id}: $e');
       return false;
     }
   }
-  
+
   Future<void> _snoozeReminder(int id) async {
-    // Find the reminder
+    final reminderIndex = _scheduledReminders.indexWhere((r) => r.id == id);
+    if (reminderIndex == -1) {
+      debugPrint("Cannot snooze: Original reminder ID $id not found.");
+      return;
+    }
+    
+    final originalReminder = _scheduledReminders[reminderIndex];
+    final snoozedTime = DateTime.now().add(const Duration(minutes: 10));
+    final snoozedId = DateTime.now().microsecondsSinceEpoch % 2147483647;
+
+    try {
+      // Create a snoozed notification
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: snoozedId,
+          channelKey: 'snooze_channel_id_v1',
+          title: '(Snoozed) ${originalReminder.title}',
+          body: originalReminder.message,
+          category: NotificationCategory.Reminder,
+          notificationLayout: NotificationLayout.Default,
+          // color: originalReminder.color.value,
+          payload: {'id': snoozedId.toString(), 'original_id': id.toString()},
+          wakeUpScreen: true,
+        ),
+        schedule: NotificationCalendar.fromDate(
+          date: snoozedTime,
+          preciseAlarm: true,
+        ),
+        actionButtons: [
+          NotificationActionButton(
+            key: 'dismiss',
+            label: 'Dismiss',
+            actionType: ActionType.SilentBackgroundAction,
+            isDangerousOption: false
+          ),
+        ]
+      );
+      
+      debugPrint("Scheduled SNOOZE notification ID $snoozedId for original ID $id at $snoozedTime.");
+
+      // If original was repeating, reschedule it for its *next* natural occurrence
+      if (originalReminder.isRepeating) {
+        debugPrint("Re-scheduling original repeating reminder ID $id after snooze action.");
+        await _scheduleNotification(originalReminder);
+      } else {
+        // If original was one-time, remove it from the list as it's been 'actioned'
+        _scheduledReminders.removeWhere((r) => r.id == id);
+        await _saveReminders();
+      }
+    } catch (e) {
+      debugPrint("Error scheduling snooze notification for original ID $id: $e");
+    }
+  }
+
+  Future<void> _dismissReminder(int id) async {
+    debugPrint("Dismiss action called for reminder ID: $id");
     final reminderIndex = _scheduledReminders.indexWhere((r) => r.id == id);
     if (reminderIndex == -1) return;
-    
-    final reminder = _scheduledReminders[reminderIndex];
-    
-    // Create a new reminder 10 minutes later
-    final snoozedTime = DateTime.now().add(const Duration(minutes: 10));
-    
-    final snoozedReminder = StudyReminderNotification(
-      id: reminder.id + 1, // New ID to avoid conflicts
-      title: '${reminder.title} (Snoozed)',
-      message: reminder.message,
-      scheduledTime: snoozedTime,
-      isRepeating: false,
-      subjectColor: reminder.subjectColor,
-    );
-    
-    _scheduledReminders.add(snoozedReminder);
-    await _saveReminders();
-    await _scheduleNotification(snoozedReminder);
+
+    await AwesomeNotifications().cancel(id); // Cancel the notification
+    debugPrint("Cancelled notification for ID: $id (Dismiss)");
+
+    // If the reminder is NOT repeating, remove it from the list.
+    // If it IS repeating, cancelling stops the *current* alert, but the scheduled
+    // notification for the next interval remains active. So we keep it in the list.
+    if (!_scheduledReminders[reminderIndex].isRepeating) {
+      _scheduledReminders.removeAt(reminderIndex);
+      debugPrint("Removed non-repeating reminder ID $id from list after dismiss.");
+      await _saveReminders();
+    } else {
+      debugPrint("Dismissed repeating reminder ID $id. It remains scheduled for future intervals.");
+      // To permanently stop a repeating reminder, use cancelReminder from UI.
+    }
   }
-  
-  Future<void> _dismissReminder(int id) async {
-    // Find and remove the reminder
-    _scheduledReminders.removeWhere((r) => r.id == id);
-    await _saveReminders();
-    await _notificationsPlugin.cancel(id);
-  }
-  
+
   Future<void> cancelReminder(int id) async {
-    await _notificationsPlugin.cancel(id);
+    debugPrint("Attempting to cancel and remove reminder ID: $id");
+    await AwesomeNotifications().cancel(id); // Cancel notification
+    int initialLength = _scheduledReminders.length;
     _scheduledReminders.removeWhere((r) => r.id == id);
-    await _saveReminders();
+    if (_scheduledReminders.length < initialLength) {
+      debugPrint("Removed reminder ID $id from list.");
+      await _saveReminders(); // Save the change
+    } else {
+      debugPrint("Reminder ID $id not found in list for cancellation.");
+    }
   }
-  
+
   Future<void> cancelAllReminders() async {
-    await _notificationsPlugin.cancelAll();
-    _scheduledReminders.clear();
-    await _saveReminders();
+    debugPrint("Cancelling ALL reminders.");
+    await AwesomeNotifications().cancelAll();
+    if (_scheduledReminders.isNotEmpty) {
+      _scheduledReminders.clear();
+      await _saveReminders();
+    }
+    debugPrint("All reminders cancelled and list cleared.");
   }
-  
-  // Get all scheduled reminders
-  List<StudyReminderNotification> get scheduledReminders => 
-      List.unmodifiable(_scheduledReminders);
-      
-  // Filter reminders by active/past
-  List<StudyReminderNotification> getReminders({bool activeOnly = false}) {
-    if (!activeOnly) return List.unmodifiable(_scheduledReminders);
-    return _scheduledReminders.where((r) => r.isActive).toList();
+
+  List<StudyReminderNotification> get scheduledReminders {
+    // Return sorted, unmodifiable list
+    final sortedList = List<StudyReminderNotification>.from(_scheduledReminders)
+      ..sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
+    return List.unmodifiable(sortedList);
   }
-  
-  // Get template at index with safety check
+
+  List<StudyReminderNotification> getReminders({bool activeOnly = true}) {
+    // Filters based on current time and repeating status
+    // final now = DateTime.now();
+    final filteredList = _scheduledReminders.where((r) {
+      if (activeOnly) {
+        return r.isActive; // Use the logic defined in the class
+      } else {
+        return true; // Return all if activeOnly is false
+      }
+    }).toList();
+    // Sort the filtered list as well
+    filteredList.sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
+    return List.unmodifiable(filteredList);
+  }
+
   Map<String, dynamic> getTemplate(int index) {
     if (index < 0 || index >= reminderTemplates.length) {
-      return reminderTemplates[0];
+      return reminderTemplates[0]; // Default/fallback template
     }
     return reminderTemplates[index];
   }
-  
-  // Dispose resources
+
   void dispose() {
+    // Remove action stream listener
+    // AwesomeNotifications().actionSink.close();
     _reminderStreamController.close();
+    _cleanupTimer?.cancel();
   }
 }
 
-// Modern UI Components
+// --- UI Components ---
+// App Definition and UI remain largely the same as in your original code
+// Just update the StudyReminderScreen to handle permissions appropriately
 
 class StudyReminderApp extends StatelessWidget {
   const StudyReminderApp({super.key});
@@ -460,81 +718,99 @@ class StudyReminderApp extends StatelessWidget {
         primarySwatch: Colors.indigo,
         brightness: Brightness.light,
         appBarTheme: const AppBarTheme(
-          elevation: 0,
+          elevation: 1, // Subtle elevation
           centerTitle: true,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87, // For title/icons
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             elevation: 0,
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            backgroundColor: Colors.indigo, // Default button color
+            foregroundColor: Colors.white,
           ),
         ),
         cardTheme: CardTheme(
-          elevation: 2,
+          elevation: 1,
+          margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey[200]!, width: 0.5),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.grey[50],
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.grey[300]!),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.indigo[400]!),
-          ),
+          fillColor: Colors.grey[100],
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.indigo[400]!, width: 1.5)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
+        listTileTheme: ListTileThemeData(
+           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+         bottomSheetTheme: const BottomSheetThemeData(
+           shape: RoundedRectangleBorder(
+             borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+           ),
+         ),
       ),
       darkTheme: ThemeData(
         primarySwatch: Colors.indigo,
         brightness: Brightness.dark,
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
+        scaffoldBackgroundColor: Colors.grey[900],
+        appBarTheme: AppBarTheme(
+          elevation: 1,
           centerTitle: true,
+          backgroundColor: Colors.grey[850],
+          foregroundColor: Colors.white,
+        ),
+         elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            backgroundColor: Colors.indigoAccent[100], // Lighter indigo for dark mode
+            foregroundColor: Colors.black87,
+          ),
         ),
         cardTheme: CardTheme(
-          elevation: 2,
+          elevation: 1,
+           margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
+             side: BorderSide(color: Colors.grey[700]!, width: 0.5),
           ),
+           color: Colors.grey[850], // Darker card background
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.grey[800],
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.grey[700]!),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.indigoAccent),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[700]!)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.indigoAccent[100]!, width: 1.5)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
+         listTileTheme: ListTileThemeData(
+           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        bottomSheetTheme: BottomSheetThemeData(
+           backgroundColor: Colors.grey[850], // Darker bottom sheet
+           shape: const RoundedRectangleBorder(
+             borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+           ),
+         ),
       ),
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light, // Or ThemeMode.light / ThemeMode.dark
       debugShowCheckedModeBanner: false,
       home: const StudyReminderScreen(),
     );
   }
 }
 
-// Example usage in your app
+// Main Screen
 class StudyReminderScreen extends StatefulWidget {
   const StudyReminderScreen({Key? key}) : super(key: key);
 
@@ -543,112 +819,101 @@ class StudyReminderScreen extends StatefulWidget {
 }
 
 class _StudyReminderScreenState extends State<StudyReminderScreen> {
-  final StudyReminderManager _reminderManager = StudyReminderManager();
-  bool _permissionsGranted = false;
+  // final StudyReminderManager _reminderManager = StudyReminderManager();
+  // State to track permission status for UI feedback (optional)
+  // Permissions are checked/requested during manager initialization now.
+  // bool _permissionsChecked = false;
+  // bool _permissionsGranted = false; // Might not be needed if relying on manager logic
 
   @override
   void initState() {
     super.initState();
-    // Initialize the reminder manager
-    _initializeAndCheckPermissions();
+    // Initialization happens in main() before runApp()
+    // _initializeAndCheckPermissions();
+     _requestPermissionsIfNeeded(); // Request exact alarm if needed
   }
-  
-  Future<void> _initializeAndCheckPermissions() async {
-    await _reminderManager.initialize();
-    _checkNotificationPermissions();
+
+  // Future<void> _initializeAndCheckPermissions() async {
+  //   await _reminderManager.initialize(); // Already called in main
+  //   _checkNotificationPermissions(); // Check again or rely on initialization
+  // }
+
+  Future<void> _requestPermissionsIfNeeded() async {
+     if (Platform.isAndroid) {
+        var status = await Permission.scheduleExactAlarm.status;
+        if (!status.isGranted) {
+          _showPermissionDialog(
+             'Schedule Exact Alarms',
+             'This app needs permission to schedule precise alarms for timely reminders, especially on newer Android versions. Please grant this permission.',
+             Permission.scheduleExactAlarm,
+          );
+        }
+     }
+     // Notification permission is requested by flutter_local_notifications during init
   }
-  
-  Future<void> _checkNotificationPermissions() async {
-    // Check if permissions are granted
-    final AndroidFlutterLocalNotificationsPlugin? androidPlugin = 
-        _reminderManager._notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    
-    // For Android 13+ (API level 33+)
-    bool? areNotificationsEnabled = await androidPlugin?.areNotificationsEnabled();
-    
-    // Check for SCHEDULE_EXACT_ALARM permission manually
-    bool hasExactAlarmPermission = false;
-    if (Platform.isAndroid) {
-      // For Android 12+ we need to check for SCHEDULE_EXACT_ALARM permission
-      if (await Permission.scheduleExactAlarm.isGranted) {
-        hasExactAlarmPermission = true;
-      }
-    } else {
-      // On iOS this isn't needed in the same way
-      hasExactAlarmPermission = true;
-    }
-    
-    setState(() {
-      _permissionsGranted = (areNotificationsEnabled ?? false) && hasExactAlarmPermission;
-    });
-    
-    // Request permissions if not granted
-    if (!_permissionsGranted) {
-      _showPermissionDialog();
-    }
-  }
-  
-  void _showPermissionDialog() {
+
+
+  void _showPermissionDialog(String title, String content, Permission permission) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Permissions Required'),
-        content: const Text(
-          'This app needs permission to send notifications and schedule exact alarms to remind you of your study sessions. Please grant these permissions to use all features.'
-        ),
+        title: Text('$title Permission Required'),
+        content: Text(content),
         actions: [
+           TextButton(
+             onPressed: () => Navigator.of(context).pop(), // Close dialog
+             child: const Text('LATER'),
+           ),
           TextButton(
             onPressed: () async {
-              Navigator.of(context).pop();
-              
-              // Request notification permission
-              // final AndroidFlutterLocalNotificationsPlugin? androidPlugin = 
-              //     _reminderManager._notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-              
-              // await androidPlugin?.requestPermission();
-              
-              // Request exact alarm permission using permission_handler
-              if (Platform.isAndroid) {
-                if (await Permission.scheduleExactAlarm.isDenied) {
-                  await Permission.scheduleExactAlarm.request();
-                }
+              Navigator.of(context).pop(); // Close dialog first
+              // Request the specific permission
+              final status = await permission.request();
+
+              if (status.isPermanentlyDenied || status.isDenied) {
+                // If denied or permanently denied, prompt to open settings
+                _showOpenSettingsDialog(title);
+              } else if (status.isGranted) {
+                 // Optional: Show success feedback
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('$title permission granted!')),
+                  );
               }
-              
-              // Open app settings if necessary
-              final openSettings = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Open Settings?'),
-                  content: const Text('You may need to enable permissions in your device settings.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Not Now'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Open Settings'),
-                    ),
-                  ],
-                ),
-              );
-              
-              if (openSettings == true) {
-                await openAppSettings();
-              }
-              
-              // Re-check permissions
-              _checkNotificationPermissions();
+              // Refresh UI or re-check state if needed
+              // setState(() {});
             },
-            child: const Text('GRANT PERMISSIONS'),
+            child: const Text('GRANT PERMISSION'),
           ),
         ],
       ),
     );
   }
 
-  
+ void _showOpenSettingsDialog(String permissionName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Permission Denied'),
+        content: Text('You have denied the $permissionName permission. To enable reminders, please grant the permission in your device settings.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await openAppSettings(); // From permission_handler
+            },
+            child: const Text('OPEN SETTINGS'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -656,31 +921,23 @@ class _StudyReminderScreenState extends State<StudyReminderScreen> {
         title: const Text('Study Reminders'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_sweep),
+            icon: const Icon(Icons.delete_sweep_outlined),
+             tooltip: 'Delete All Reminders',
             onPressed: () async {
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text('Clear All Reminders?'),
-                  content: const Text(
-                    'Are you sure you want to delete all scheduled reminders?'
-                  ),
+                  content: const Text('Are you sure you want to delete ALL scheduled reminders? This action cannot be undone.'),
                   actions: [
-                    TextButton(
-                      child: const Text('Cancel'),
-                      onPressed: () => Navigator.of(context).pop(false),
-                    ),
-                    TextButton(
-                      child: const Text('Delete All'),
-                      onPressed: () => Navigator.of(context).pop(true),
-                    ),
+                    TextButton(child: const Text('Cancel'), onPressed: () => Navigator.of(context).pop(false)),
+                    TextButton(child: Text('Delete All', style: TextStyle(color: Colors.red[400])), onPressed: () => Navigator.of(context).pop(true)),
                   ],
                 ),
               );
-              
               if (confirm == true) {
                 await StudyReminderManager().cancelAllReminders();
-                setState(() {}); // Refresh the UI
+                // StreamBuilder will handle the UI update automatically
               }
             },
           ),
@@ -688,26 +945,37 @@ class _StudyReminderScreenState extends State<StudyReminderScreen> {
       ),
       body: Column(
         children: [
-          // Reminder creation form
-          StudyReminderPickerWidget(
-            onReminderScheduled: (_) => setState(() {}),
-          ),
-          
-          // Divider
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Divider(thickness: 1),
-          ),
-          
-          // Scheduled reminders list title
+          // Reminder creation form - wrapped in Padding
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'Your Scheduled Reminders',
-              style: Theme.of(context).textTheme.titleMedium,
+            padding: const EdgeInsets.only(top: 8.0), // Add padding above the card
+            child: StudyReminderPickerWidget(
+              // Callback might not be strictly needed if list updates via stream
+              onReminderScheduled: (newReminder) {
+                 debugPrint("Reminder scheduled callback received in screen.");
+                 // Optionally scroll to the new reminder or give feedback
+                 // setState(() {}); // StreamBuilder handles list refresh
+              },
             ),
           ),
-          
+
+          // Divider
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Divider(thickness: 1),
+          ),
+
+          // Scheduled reminders list title
+          Padding(
+            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Upcoming Reminders',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+
           // List of scheduled reminders
           const Expanded(
             child: ScheduledRemindersListWidget(),
@@ -718,10 +986,11 @@ class _StudyReminderScreenState extends State<StudyReminderScreen> {
   }
 }
 
-// StudyReminderPickerWidget - For creating new reminders
+
+// Reminder Creation Widget
 class StudyReminderPickerWidget extends StatefulWidget {
   final Function(StudyReminderNotification) onReminderScheduled;
-  
+
   const StudyReminderPickerWidget({
     Key? key,
     required this.onReminderScheduled,
@@ -735,12 +1004,13 @@ class _StudyReminderPickerWidgetState extends State<StudyReminderPickerWidget> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _messageController = TextEditingController();
-  
-  DateTime _selectedDate = DateTime.now().add(const Duration(hours: 1));
+
+  // Set initial time slightly in the future (e.g., next hour mark or 15 mins from now)
+  DateTime _selectedDate = DateTime.now().add(const Duration(minutes: 15));
   bool _isRepeating = false;
-  RepeatInterval _repeatInterval = RepeatInterval.daily;
+  RepeatInterval _repeatInterval = RepeatInterval.daily; // Default repeat if enabled
   int _selectedTemplateIndex = 0;
-  
+
   @override
   void initState() {
     super.initState();
@@ -748,15 +1018,23 @@ class _StudyReminderPickerWidgetState extends State<StudyReminderPickerWidget> {
     final template = StudyReminderManager().getTemplate(0);
     _titleController.text = template['title'];
     _messageController.text = template['message'];
+
+     // Set initial time to be slightly rounded, e.g., next 15-minute interval
+     final now = DateTime.now();
+     _selectedDate = DateTime(now.year, now.month, now.day, now.hour, (now.minute ~/ 15 + 1) * 15);
+      // If the calculated time is past, add an hour
+     if (_selectedDate.isBefore(now)) {
+       _selectedDate = _selectedDate.add(const Duration(hours: 1));
+     }
   }
-  
+
   @override
   void dispose() {
     _titleController.dispose();
     _messageController.dispose();
     super.dispose();
   }
-  
+
   void _selectTemplate(int index) {
     final template = StudyReminderManager().getTemplate(index);
     setState(() {
@@ -765,108 +1043,150 @@ class _StudyReminderPickerWidgetState extends State<StudyReminderPickerWidget> {
       _messageController.text = template['message'];
     });
   }
-  
+
   Future<void> _selectDateTime(BuildContext context) async {
-    // Pick date
+    final DateTime initialDatePickerDate = _selectedDate.isBefore(DateTime.now()) ? DateTime.now() : _selectedDate;
+    final DateTime firstDatePickerDate = DateTime.now().subtract(const Duration(days: 1)); // Allow yesterday just in case
+
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: initialDatePickerDate,
+      firstDate: firstDatePickerDate, // Allow picking today
+      lastDate: DateTime.now().add(const Duration(days: 365 * 2)), // Allow scheduling up to 2 years ahead
       builder: (context, child) {
         return Theme(
+          // Apply theme for consistency
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: Theme.of(context).primaryColor,
-            ),
+             colorScheme: Theme.of(context).colorScheme.copyWith(
+                primary: Theme.of(context).primaryColor, // Use primary color
+              ),
           ),
           child: child!,
         );
       },
     );
-    
-    if (pickedDate == null) return;
-    
-    // Pick time
+
+    if (pickedDate == null) return; // User cancelled date picker
+
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(_selectedDate),
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: Theme.of(context).primaryColor,
-            ),
-          ),
+           data: Theme.of(context).copyWith(
+              colorScheme: Theme.of(context).colorScheme.copyWith(
+                 primary: Theme.of(context).primaryColor,
+               ),
+           ),
           child: child!,
         );
       },
     );
-    
-    if (pickedTime == null) return;
-    
-    setState(() {
-      _selectedDate = DateTime(
-        pickedDate.year,
-        pickedDate.month,
-        pickedDate.day,
-        pickedTime.hour,
-        pickedTime.minute,
+
+    if (pickedTime == null) return; // User cancelled time picker
+
+     DateTime potentialSelection = DateTime(
+        pickedDate.year, pickedDate.month, pickedDate.day,
+        pickedTime.hour, pickedTime.minute,
       );
+
+     // Basic validation: Prevent selecting a past time for one-off reminders (stricter check here)
+      if (!_isRepeating && potentialSelection.isBefore(DateTime.now().subtract(const Duration(minutes: 1)))) { // Allow a tiny buffer
+          if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                 const SnackBar(
+                   content: Text('Cannot schedule a one-time reminder in the past.'),
+                   backgroundColor: Colors.orangeAccent,
+                   behavior: SnackBarBehavior.floating,
+                 ),
+              );
+          }
+          return; // Don't update if invalid
+      }
+
+    setState(() {
+      _selectedDate = potentialSelection;
     });
   }
-  
+
   Future<void> _scheduleReminder() async {
-    if (!_formKey.currentState!.validate()) return;
-    
+    if (!_formKey.currentState!.validate()) return; // Form validation failed
+
+     // Additional check: Ensure selected date is not in the past for one-time reminders
+     if (!_isRepeating && _selectedDate.isBefore(DateTime.now())) {
+         ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(
+             content: Text('Please select a future time for one-time reminders.'),
+             backgroundColor: Colors.orangeAccent,
+             behavior: SnackBarBehavior.floating,
+           ),
+         );
+         return;
+     }
+
+    // --- Check for Exact Alarm Permission before scheduling ---
+    bool hasPermission = await StudyReminderManager()._checkExactAlarmPermission();
+    if (!hasPermission) {
+        if(mounted) {
+            // Show dialog explaining why and potentially guide to settings
+             _showPermissionDialog(
+                 'Schedule Exact Alarms',
+                 'Timely reminders require the "Alarms & Reminders" permission. Please grant this permission to schedule notifications.',
+                 Permission.scheduleExactAlarm,
+             );
+        }
+       return; // Stop scheduling if permission is missing
+    }
+
     final template = StudyReminderManager().getTemplate(_selectedTemplateIndex);
-    
+
     final result = await StudyReminderManager().scheduleStudyReminder(
-      title: _titleController.text,
-      message: _messageController.text,
+      title: _titleController.text.trim(),
+      message: _messageController.text.trim(),
       scheduledTime: _selectedDate,
       isRepeating: _isRepeating,
       repeatInterval: _isRepeating ? _repeatInterval : RepeatInterval.none,
       subjectColor: template['color'],
     );
-    
-    if (result) {
-      // Show success message
-      if (mounted) {
+
+    if (mounted) { // Check if widget is still in the tree
+      if (result) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Reminder scheduled for ${DateFormat('MMM d, y • h:mm a').format(_selectedDate)}'),
-            backgroundColor: Colors.green,
+            backgroundColor: Colors.green[600],
             behavior: SnackBarBehavior.floating,
-            action: SnackBarAction(
-              label: 'OK',
-              textColor: Colors.white,
-              onPressed: () {},
-            ),
+            action: SnackBarAction(label: 'OK', textColor: Colors.white, onPressed: () {}),
           ),
         );
-      }
-      
-      // Reset form
-      _titleController.text = template['title'];
-      _messageController.text = template['message'];
-      setState(() {
-        _selectedDate = DateTime.now().add(const Duration(hours: 1));
-        _isRepeating = false;
-      });
-      
-      // Notify parent
-      final reminders = StudyReminderManager().scheduledReminders;
-      if (reminders.isNotEmpty) {
-        widget.onReminderScheduled(reminders.last);
-      }
-    } else {
-      // Show error message
-      if (mounted) {
+
+        // Reset form to initial template state and next available time slot
+        _selectTemplate(0); // Reset to first template
+        final now = DateTime.now();
+         final nextTime = DateTime(now.year, now.month, now.day, now.hour, (now.minute ~/ 15 + 1) * 15);
+        setState(() {
+           _selectedDate = nextTime.isBefore(now) ? nextTime.add(const Duration(hours: 1)) : nextTime;
+          _isRepeating = false;
+           _repeatInterval = RepeatInterval.daily; // Reset interval too
+        });
+
+        // Notify parent widget (StudyReminderScreen)
+        final reminders = StudyReminderManager().scheduledReminders;
+        if (reminders.isNotEmpty) {
+          // Find the newly added reminder (usually the last one, but lookup by time/title is safer if needed)
+          // Let's assume the last one is the newly scheduled one for simplicity here.
+           final newReminder = reminders.lastWhere(
+               (r) => r.title == _titleController.text && r.message == _messageController.text && r.scheduledTime == _selectedDate,
+               orElse: () => reminders.last // Fallback
+           );
+          widget.onReminderScheduled(newReminder);
+        }
+
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to schedule reminder. Please try again.'),
-            backgroundColor: Colors.red,
+            content: Text('Failed to schedule reminder. Check permissions or try again.'),
+            backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -874,20 +1194,26 @@ class _StudyReminderPickerWidgetState extends State<StudyReminderPickerWidget> {
     }
   }
 
+
+  // --- BUILD METHOD (Completing the UI) ---
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Card(
-      margin: const EdgeInsets.all(16),
+      // Use margin from theme or define specific margin
+      // margin: const EdgeInsets.all(16),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min, // Make card wrap content
             children: [
-              // Template selector
+              // --- Template Selector ---
+              Text("Choose a Template", style: Theme.of(context).textTheme.labelLarge),
+               const SizedBox(height: 8),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -896,7 +1222,8 @@ class _StudyReminderPickerWidgetState extends State<StudyReminderPickerWidget> {
                     (index) {
                       final template = StudyReminderManager().getTemplate(index);
                       final color = Color(int.parse(template['color'].replaceAll('#', '0xff')));
-                      
+                      final bool isSelected = _selectedTemplateIndex == index;
+
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: InkWell(
@@ -906,35 +1233,20 @@ class _StudyReminderPickerWidgetState extends State<StudyReminderPickerWidget> {
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: _selectedTemplateIndex == index
-                                  ? color.withOpacity(0.2)
-                                  : isDarkMode ? Colors.grey[800] : Colors.grey[100],
+                              color: isSelected ? color.withOpacity(0.15) : (isDarkMode ? Colors.grey[800] : Colors.grey[100]),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: _selectedTemplateIndex == index
-                                    ? color
-                                    : Colors.transparent,
-                                width: 2,
+                                color: isSelected ? color : Colors.transparent,
+                                width: 1.5,
                               ),
                             ),
                             child: Row(
                               children: [
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: color,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
+                                Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
                                 const SizedBox(width: 8),
                                 Text(
                                   template['title'],
-                                  style: TextStyle(
-                                    fontWeight: _selectedTemplateIndex == index
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
+                                  style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, fontSize: 13),
                                 ),
                               ],
                             ),
@@ -945,15 +1257,15 @@ class _StudyReminderPickerWidgetState extends State<StudyReminderPickerWidget> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 20),
-              
-              // Title field
+
+              // --- Title Field ---
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
                   labelText: 'Reminder Title',
-                  prefixIcon: Icon(Icons.title),
+                  prefixIcon: Icon(Icons.title_rounded),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -962,135 +1274,116 @@ class _StudyReminderPickerWidgetState extends State<StudyReminderPickerWidget> {
                   return null;
                 },
               ),
-              
+
               const SizedBox(height: 16),
-              
-              // Message field
+
+              // --- Message Field ---
               TextFormField(
                 controller: _messageController,
                 decoration: const InputDecoration(
-                  labelText: 'Reminder Message',
-                  prefixIcon: Icon(Icons.message),
+                  labelText: 'Reminder Message (Optional)',
+                   prefixIcon: Icon(Icons.message_outlined),
                 ),
-                maxLines: 2,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a message';
-                  }
-                  return null;
-                },
+                 maxLines: 2, // Allow slightly more text
+                // No validator, message is optional
               ),
-              
-              const SizedBox(height: 16),
-              
-              // Date and time picker
-              InkWell(
-                onTap: () => _selectDateTime(context),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: isDarkMode ? Colors.grey[800] : Colors.grey[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.event,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Date & Time',
-                              style: TextStyle(
-                                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              DateFormat('MMM d, y • h:mm a').format(_selectedDate),
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.arrow_drop_down,
-                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Repeating option
-              SwitchListTile(
-                title: const Text('Repeating Reminder'),
-                subtitle: Text(_isRepeating
-                    ? 'Repeats ${_repeatInterval.friendlyName.toLowerCase()}'
-                    : 'One-time reminder'),
-                value: _isRepeating,
-                onChanged: (value) {
-                  setState(() {
-                    _isRepeating = value;
-                  });
-                },
-                contentPadding: EdgeInsets.zero,
-                activeColor: Theme.of(context).primaryColor,
-              ),
-              
-              // Repeat interval selection
-              if (_isRepeating)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 16),
-                  child: SegmentedButton<RepeatInterval>(
-                    segments: [
-                      ButtonSegment(
-                        value: RepeatInterval.daily,
-                        label: const Text('Daily'),
-                        icon: const Icon(Icons.calendar_today),
-                      ),
-                      ButtonSegment(
-                        value: RepeatInterval.weekly,
-                        label: const Text('Weekly'),
-                        icon: const Icon(Icons.calendar_view_week),
-                      ),
-                      ButtonSegment(
-                        value: RepeatInterval.monthly,
-                        label: const Text('Monthly'),
-                        icon: const Icon(Icons.calendar_month),
-                      ),
-                    ],
-                    selected: {_repeatInterval},
-                    onSelectionChanged: (selection) {
-                      setState(() {
-                        _repeatInterval = selection.first;
-                      });
-                    },
-                  ),
-                ),
-              
+
               const SizedBox(height: 20),
-              
-              // Schedule button
+
+              // --- Date and Time Picker Row ---
+              InkWell(
+                 onTap: () => _selectDateTime(context),
+                 borderRadius: BorderRadius.circular(8),
+                 child: InputDecorator(
+                    decoration: InputDecoration(
+                       labelText: 'Date & Time',
+                       prefixIcon: Icon(Icons.calendar_today_outlined, color: Theme.of(context).primaryColor),
+                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[400]!)),
+                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                    ),
+                   child: Text(
+                     DateFormat('EEE, MMM d, y • h:mm a').format(_selectedDate), // Format for display
+                     style: const TextStyle(fontSize: 15),
+                   ),
+                 ),
+              ),
+
+
+              const SizedBox(height: 12),
+
+              // --- Repeating Options ---
+               SwitchListTile(
+                 title: const Text('Repeat Reminder'),
+                 value: _isRepeating,
+                 onChanged: (bool value) {
+                   setState(() {
+                     _isRepeating = value;
+                     // If turning off repeat, ensure date is not in the past
+                     if (!_isRepeating && _selectedDate.isBefore(DateTime.now())) {
+                         final now = DateTime.now();
+                         _selectedDate = DateTime(now.year, now.month, now.day, now.hour, (now.minute ~/ 15 + 1) * 15);
+                         if (_selectedDate.isBefore(now)) {
+                            _selectedDate = _selectedDate.add(const Duration(hours: 1));
+                         }
+                     }
+                   });
+                 },
+                 secondary: Icon(_isRepeating ? Icons.repeat_on_rounded : Icons.repeat_rounded),
+                  contentPadding: EdgeInsets.zero, // Use padding from parent/SwitchListTile itself
+                  dense: true,
+                  activeColor: Theme.of(context).primaryColor,
+               ),
+
+
+              // --- Repeat Interval Dropdown (Conditional) ---
+              AnimatedSwitcher(
+                 duration: const Duration(milliseconds: 300),
+                 transitionBuilder: (Widget child, Animation<double> animation) {
+                    return SizeTransition(sizeFactor: animation, axisAlignment: -1.0, child: child);
+                 },
+                 child: _isRepeating
+                     ? Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: DropdownButtonFormField<RepeatInterval>(
+                            value: _repeatInterval,
+                            items: RepeatInterval.values
+                                .where((interval) => interval != RepeatInterval.none) // Exclude 'none' from repeating options
+                                .map((RepeatInterval interval) {
+                              return DropdownMenuItem<RepeatInterval>(
+                                value: interval,
+                                child: Text(interval.friendlyName),
+                              );
+                            }).toList(),
+                            onChanged: (RepeatInterval? newValue) {
+                              if (newValue != null) {
+                                setState(() {
+                                  _repeatInterval = newValue;
+                                });
+                              }
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Frequency',
+                              prefixIcon: Icon(Icons.timer_outlined),
+                              border: OutlineInputBorder(),
+                               contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14), // Match other fields
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(), // Show nothing if not repeating
+               ),
+
+
+              const SizedBox(height: 24),
+
+              // --- Schedule Button ---
               ElevatedButton.icon(
                 onPressed: _scheduleReminder,
-                icon: const Icon(Icons.notifications_active),
+                icon: const Icon(Icons.alarm_add_rounded),
                 label: const Text('SCHEDULE REMINDER'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                   textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -1099,446 +1392,312 @@ class _StudyReminderPickerWidgetState extends State<StudyReminderPickerWidget> {
       ),
     );
   }
+
+  // --- Helper to show permission dialog (used in _scheduleReminder) ---
+  void _showPermissionDialog(String title, String content, Permission permission) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('$title Permission Required'),
+        content: Text(content),
+        actions: [
+           TextButton(
+             onPressed: () => Navigator.of(context).pop(),
+             child: const Text('LATER'),
+           ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              final status = await permission.request();
+              if (status.isPermanentlyDenied || status.isDenied) {
+                 if(mounted) _showOpenSettingsDialog(title);
+              } else if (status.isGranted) {
+                 if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$title permission granted!')));
+                 // Attempt to schedule again after granting
+                 await _scheduleReminder();
+              }
+            },
+            child: const Text('GRANT PERMISSION'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showOpenSettingsDialog(String permissionName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Permission Denied'),
+        content: Text('Please grant the $permissionName permission in your device settings to enable this feature.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('CANCEL')),
+          TextButton(onPressed: () async { Navigator.of(context).pop(); await openAppSettings(); }, child: const Text('OPEN SETTINGS')),
+        ],
+      ),
+    );
+  }
 }
 
-// ScheduledRemindersListWidget - For displaying existing reminders
+
+
+// Widget to Display List of Scheduled Reminders
 class ScheduledRemindersListWidget extends StatefulWidget {
-  const ScheduledRemindersListWidget({super.key});
+  const ScheduledRemindersListWidget({Key? key}) : super(key: key);
 
   @override
   State<ScheduledRemindersListWidget> createState() => _ScheduledRemindersListWidgetState();
 }
 
 class _ScheduledRemindersListWidgetState extends State<ScheduledRemindersListWidget> {
-  List<StudyReminderNotification> _reminders = [];
-  bool _showPastReminders = false;
-  
-  @override
-  void initState() {
-    super.initState();
-    _loadReminders();
-    
-    // Listen for changes in reminders
-    StudyReminderManager().remindersStream.listen((reminders) {
-      setState(() {
-        _reminders = reminders;
-      });
-    });
+  final StudyReminderManager _reminderManager = StudyReminderManager();
+
+  // No need for local list or subscription management if using StreamBuilder directly
+
+  void _showReminderDetails(BuildContext context, StudyReminderNotification reminder) {
+    showModalBottomSheet(
+      context: context,
+       isScrollControlled: true, // Allow sheet to take more height if needed
+      builder: (context) => ReminderDetailsBottomSheet(reminder: reminder),
+    );
   }
-  
-  void _loadReminders() {
-    setState(() {
-      _reminders = StudyReminderManager().scheduledReminders;
-    });
-  }
-  
-  // Future<void> _deleteReminder(StudyReminderNotification reminder) async {
-  //   // Confirm before deleting
-  //   final confirmed = await showDialog<bool>(
-  //     context: context,
-  //     builder: (context) => AlertDialog(
-  //       title: const Text('Delete Reminder'),
-  //       content: Text('Are you sure you want to delete "${reminder.title}"?'),
-  //       actions: [
-  //         TextButton(
-  //           onPressed: () => Navigator.of(context).pop(false),
-  //           child: const Text('CANCEL'),
-  //         ),
-  //         TextButton(
-  //           onPressed: () => Navigator.of(context).pop(true),
-  //           child: const Text('DELETE'),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-    
-  //   if (confirmed == true) {
-  //     await StudyReminderManager().cancelReminder(reminder.id);
-  //     _loadReminders();
-  //   }
-  // }
-  
+
   @override
   Widget build(BuildContext context) {
-    final activeReminders = _reminders.where((r) => r.isActive).toList();
-    final pastReminders = _reminders.where((r) => !r.isActive).toList();
-    
-    final displayedReminders = _showPastReminders ? _reminders : activeReminders;
-    
-    if (_reminders.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.notifications_off,
-              size: 60,
-              color: Colors.grey,
+    return StreamBuilder<List<StudyReminderNotification>>(
+      stream: _reminderManager.remindersStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          // Show loading indicator only if there's no initial data yet
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          debugPrint("Error in reminder stream: ${snapshot.error}");
+          return Center(child: Text('Error loading reminders: ${snapshot.error}'));
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Text(
+                'No reminders scheduled yet.\nUse the form above to add one!',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
+              ),
             ),
-            SizedBox(height: 16),
-            Text(
-              'No reminders scheduled',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Create one using the form above',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
-    
-    return Column(
-      children: [
-        // Toggle switch for past reminders
-        if (pastReminders.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Text(
-                  'Show past reminders',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                  ),
-                ),
-                const Spacer(),
-                Switch(
-                  value: _showPastReminders,
-                  onChanged: (value) {
-                    setState(() {
-                      _showPastReminders = value;
-                    });
-                  },
-                  activeColor: Theme.of(context).primaryColor,
-                ),
-              ],
-            ),
-          ),
-          
-        Expanded(
-          child: displayedReminders.isEmpty
-              ? Center(
-                  child: Text(
-                    _showPastReminders
-                        ? 'No reminders to show'
-                        : 'No active reminders\nTurn on "Show past reminders" to see previous ones',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  itemCount: displayedReminders.length,
-                  itemBuilder: (context, index) {
-                    final reminder = displayedReminders[index];
-                    final isPast = !reminder.isActive;
-                    
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      child: Dismissible(
-                        key: Key('reminder-${reminder.id}'),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: const Icon(
-                            Icons.delete,
-                            color: Colors.white,
-                          ),
-                        ),
-                        onDismissed: (direction) {
-                          StudyReminderManager().cancelReminder(reminder.id);
-                        },
-                        confirmDismiss: (direction) async {
-                          return await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Delete Reminder'),
-                              content: Text('Are you sure you want to delete "${reminder.title}"?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(context).pop(false),
-                                  child: const Text('CANCEL'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.of(context).pop(true),
-                                  child: const Text('DELETE'),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                        child: Card(
-                          elevation: 1,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: () {
-                              // Show reminder details
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                                ),
-                                builder: (context) => _ReminderDetailsSheet(reminder: reminder),
-                              );
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isPast
-                                      ? Colors.grey.withOpacity(0.3)
-                                      : reminder.color.withOpacity(0.5),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 20,
-                                        height: 20,
-                                        decoration: BoxDecoration(
-                                          color: reminder.color.withOpacity(isPast ? 0.5 : 1),
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          reminder.title,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color: isPast
-                                                ? Colors.grey
-                                                : null,
-                                          ),
-                                        ),
-                                      ),
-                                      if (reminder.isRepeating)
-                                        Tooltip(
-                                          message: '${reminder.repeatInterval.friendlyName} reminder',
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: isPast
-                                                  ? Colors.grey.withOpacity(0.2)
-                                                  : reminder.color.withOpacity(0.2),
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  reminder.repeatInterval == RepeatInterval.daily
-                                                      ? Icons.calendar_today
-                                                      : reminder.repeatInterval == RepeatInterval.weekly
-                                                          ? Icons.calendar_view_week
-                                                          : Icons.calendar_month,
-                                                  size: 14,
-                                                  color: isPast ? Colors.grey : reminder.color,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  reminder.repeatInterval.friendlyName,
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: isPast ? Colors.grey : reminder.color,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 32),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          reminder.message,
-                                          style: TextStyle(
-                                            color: isPast ? Colors.grey : null,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.access_time,
-                                              size: 16,
-                                              color: isPast
-                                                  ? Colors.grey
-                                                  : Theme.of(context).textTheme.bodySmall?.color,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              DateFormat('MMM d, y • h:mm a').format(reminder.scheduledTime),
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: isPast
-                                                    ? Colors.grey
-                                                    : Theme.of(context).textTheme.bodySmall?.color,
-                                              ),
-                                            ),
-                                            if (isPast)
-                                              Container(
-                                                margin: const EdgeInsets.only(left: 8),
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.grey.withOpacity(0.2),
-                                                  borderRadius: BorderRadius.circular(4),
-                                                ),
-                                                child: const Text(
-                                                  'PAST',
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.grey,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
+          );
+        }
+
+        // We have data - display the list
+        final reminders = snapshot.data!;
+
+        return ListView.builder(
+           padding: const EdgeInsets.only(left: 8, right: 8, bottom: 16), // Add padding around the list
+          itemCount: reminders.length,
+          itemBuilder: (context, index) {
+            final reminder = reminders[index];
+            return ReminderListTile(
+              reminder: reminder,
+              onTap: () => _showReminderDetails(context, reminder),
+              onDelete: () async {
+                  // Optional: Confirmation dialog before deleting directly from tile swipe/button
+                 final confirm = await showDialog<bool>(
+                     context: context,
+                     builder: (context) => AlertDialog(
+                       title: Text('Delete Reminder?'),
+                       content: Text('"${reminder.title}"\n\nAre you sure you want to delete this reminder?'),
+                       actions: [
+                          TextButton(child: Text('Cancel'), onPressed: () => Navigator.of(context).pop(false)),
+                          TextButton(child: Text('Delete', style: TextStyle(color: Colors.red[400])), onPressed: () => Navigator.of(context).pop(true)),
+                       ],
+                     ),
+                  );
+                 if (confirm == true) {
+                     await _reminderManager.cancelReminder(reminder.id);
+                      if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Reminder deleted'), duration: Duration(seconds: 2), behavior: SnackBarBehavior.floating,),
+                           );
+                      }
+                 }
+              },
+            );
+          },
+        );
+      },
     );
   }
 }
 
-// Reminder details bottom sheet
-class _ReminderDetailsSheet extends StatelessWidget {
+// Custom List Tile for Reminders
+class ReminderListTile extends StatelessWidget {
   final StudyReminderNotification reminder;
-  
-  const _ReminderDetailsSheet({
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const ReminderListTile({
     Key? key,
     required this.reminder,
+    required this.onTap,
+    required this.onDelete,
   }) : super(key: key);
-  
+
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final isPast = !reminder.isActive;
-    
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+    final bool isPast = !reminder.isRepeating && reminder.scheduledTime.isBefore(DateTime.now());
+     final Color tileColor = isPast ? Colors.grey.withOpacity(0.5) : Theme.of(context).cardColor; // Use theme's card color or grey out if past
+     final Color contentColor = isPast ? Colors.grey[700]! : Theme.of(context).textTheme.bodyLarge!.color!;
+
+    return Card( // Wrap ListTile in a Card for better separation and styling
+       color: tileColor, // Apply past styling color
+       // elevation: 1, // Use elevation from theme
+       // margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8), // Use margin from theme
+      child: ListTile(
+         // leading: CircleAvatar(
+         //   backgroundColor: reminder.color.withOpacity(0.2),
+         //   child: Icon(Icons.alarm, color: reminder.color, size: 20),
+         // ),
+         leading: Container(
+            width: 5, // Width of the color bar
+             decoration: BoxDecoration(
+               color: reminder.color,
+               borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12), // Match card radius
+                  bottomLeft: Radius.circular(12),
+                ),
+             ),
+           ),
+         title: Text(
+           reminder.title,
+           style: TextStyle(
+             fontWeight: FontWeight.bold,
+             decoration: isPast ? TextDecoration.lineThrough : TextDecoration.none,
+             color: contentColor,
+           ),
+           maxLines: 1,
+           overflow: TextOverflow.ellipsis,
+         ),
+        subtitle: Row( // Use Row for time and repeat icon
+           children: [
+             Icon(reminder.isRepeating ? Icons.repeat : Icons.access_time, size: 14, color: contentColor.withOpacity(0.7)),
+             const SizedBox(width: 4),
+             Text(
+               '${reminder.formattedTime} - ${reminder.repeatingInfo}',
+               style: TextStyle(
+                  fontSize: 13,
+                 decoration: isPast ? TextDecoration.lineThrough : TextDecoration.none,
+                 color: contentColor.withOpacity(0.7),
+               ),
+             ),
+           ],
+         ),
+        trailing: IconButton(
+          icon: Icon(Icons.delete_outline, color: isPast ? Colors.grey[600] : Colors.red[300]),
+          tooltip: 'Delete Reminder',
+          onPressed: onDelete, // Call the provided delete callback
+        ),
+        onTap: onTap, // Call the provided tap callback
+         // dense: true, // Make tile more compact
+         contentPadding: const EdgeInsets.only(left: 0, right: 12, top: 6, bottom: 6), // Adjust padding: no left padding for the color bar
       ),
+    );
+  }
+}
+
+
+// Bottom Sheet for Reminder Details
+class ReminderDetailsBottomSheet extends StatelessWidget {
+  final StudyReminderNotification reminder;
+
+  const ReminderDetailsBottomSheet({Key? key, required this.reminder}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final bool isPast = !reminder.isRepeating && reminder.scheduledTime.isBefore(DateTime.now());
+
+    return Container(
+      padding: const EdgeInsets.all(20.0),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min, // Make sheet wrap content
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with close button
+          // Top Indicator and Title
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 24,
-                height: 24,
+                width: 40,
+                height: 5,
                 decoration: BoxDecoration(
-                  color: reminder.color,
-                  shape: BoxShape.circle,
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Reminder Details',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.of(context).pop(),
               ),
             ],
           ),
-          
-          const SizedBox(height: 24),
-          
-          // Title
-          Text(
-            'Title',
-            style: TextStyle(
-              fontSize: 12,
-              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            reminder.title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          
           const SizedBox(height: 16),
-          
+          Row(
+             children: [
+               CircleAvatar(backgroundColor: reminder.color, radius: 10),
+               const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    reminder.title,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                     overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isPast)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: Chip(
+                      label: const Text('PAST'),
+                      labelStyle: TextStyle(fontSize: 10, color: Colors.grey[800]),
+                      backgroundColor: Colors.grey[400],
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  )
+             ],
+          ),
+
+          const SizedBox(height: 20),
+
           // Message
           Text(
             'Message',
             style: TextStyle(
               fontSize: 12,
               color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            reminder.message,
-            style: const TextStyle(fontSize: 16),
+            reminder.message.isEmpty ? '(No message)' : reminder.message,
+            style: TextStyle(fontSize: 16, color: reminder.message.isEmpty ? Colors.grey : null),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Date and time
           Text(
             'Scheduled For',
-            style: TextStyle(
+             style: TextStyle(
               fontSize: 12,
               color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Row(
             children: [
-              Icon(
-                Icons.event,
-                size: 18,
-                color: reminder.color,
-              ),
+              Icon(Icons.event, size: 18, color: reminder.color.withOpacity(0.8)),
               const SizedBox(width: 8),
               Text(
+                // Use a more detailed date format here
                 DateFormat('EEEE, MMMM d, y').format(reminder.scheduledTime),
                 style: const TextStyle(fontSize: 16),
               ),
@@ -1547,38 +1706,33 @@ class _ReminderDetailsSheet extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(
-                Icons.access_time,
-                size: 18,
-                color: reminder.color,
-              ),
+              Icon(Icons.access_time, size: 18, color: reminder.color.withOpacity(0.8)),
               const SizedBox(width: 8),
               Text(
-                DateFormat('h:mm a').format(reminder.scheduledTime),
+                DateFormat('h:mm a').format(reminder.scheduledTime), // Keep time format simple
                 style: const TextStyle(fontSize: 16),
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Repeat info
           Text(
             'Repeat',
-            style: TextStyle(
+             style: TextStyle(
               fontSize: 12,
               color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Row(
             children: [
               Icon(
-                reminder.isRepeating
-                    ? Icons.repeat
-                    : Icons.repeat_one,
+                reminder.isRepeating ? Icons.repeat_on_rounded : Icons.looks_one_outlined,
                 size: 18,
-                color: reminder.color,
+                color: reminder.color.withOpacity(0.8),
               ),
               const SizedBox(width: 8),
               Text(
@@ -1589,82 +1743,110 @@ class _ReminderDetailsSheet extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
-          // Action buttons
+
+          // --- Action buttons ---
           Row(
             children: [
-              // Edit button - Disabled for now
+              // Edit button - Future Feature
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: null, // Disabled for now
-                  icon: const Icon(Icons.edit),
+                  onPressed: null, // DISABLED - TODO: Implement Edit Functionality
+                  icon: const Icon(Icons.edit_outlined, size: 18),
                   label: const Text('EDIT'),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                     side: BorderSide(color: Colors.grey[400]!),
+                     foregroundColor: Colors.grey[600],
+                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
               ),
               const SizedBox(width: 16),
-              
+
               // Delete button
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    // Close the bottom sheet
+                    // Close the bottom sheet first
                     Navigator.of(context).pop();
-                    
-                    // Delete the reminder
-                    await StudyReminderManager().cancelReminder(reminder.id);
-                    
-                    // Show confirmation
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Reminder deleted'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
+
+                    // Confirm Deletion
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Delete Reminder?'),
+                        content: Text('Are you sure you want to delete "${reminder.title}"?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+                          TextButton(onPressed: () => Navigator.of(context).pop(true), child: Text('Delete', style: TextStyle(color: Colors.red[400]))),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                        // Delete the reminder using the manager
+                        await StudyReminderManager().cancelReminder(reminder.id);
+                         // Show confirmation SnackBar (check if mounted)
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Reminder deleted'),
+                              behavior: SnackBarBehavior.floating,
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
                     }
                   },
-                  icon: const Icon(Icons.delete),
+                  icon: const Icon(Icons.delete_forever_outlined, size: 18),
                   label: const Text('DELETE'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: Colors.red[400],
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
+                    elevation: 0,
                   ),
                 ),
               ),
             ],
           ),
-          
-          // If past, show recreate button
+
+          // If past and non-repeating, show recreate button
           if (isPast) ...[
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () {
-                // Close the bottom sheet
-                Navigator.of(context).pop();
-                
-                // TODO: Open create reminder form with this reminder's data
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('This feature is coming soon'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text('RECREATE REMINDER'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+            SizedBox( // Ensure button takes full width
+               width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // Close the bottom sheet
+                  Navigator.of(context).pop();
+
+                  // TODO: Implement Recreate Functionality
+                  // Ideally, this would open the StudyReminderPickerWidget
+                  // pre-filled with the details of 'reminder', allowing the user
+                  // to pick a new date/time.
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Recreate feature coming soon!'),
+                       backgroundColor: Colors.blueAccent,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('RECREATE REMINDER'),
+                style: ElevatedButton.styleFrom(
+                  // Use primary color from theme
+                  // backgroundColor: Theme.of(context).primaryColor,
+                  // foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                   elevation: 0,
+                ),
               ),
             ),
           ],
+           const SizedBox(height: 8), // Add padding at the bottom
         ],
       ),
     );
