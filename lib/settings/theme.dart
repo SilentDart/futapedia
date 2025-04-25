@@ -30,7 +30,6 @@ class ThemeColorManager {
     'Green': Colors.green,
     'Grey': Colors.grey,
     'Orange': Colors.orange,
-    'Yellow': Colors.yellow,
     'Cyan': Colors.cyan,
     'Teal': Colors.teal,
   };

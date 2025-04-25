@@ -102,11 +102,12 @@ class GoogleDriveServicePDF {
       
       // Report progress before encryption
       onProgress(0.8);
+      await PDFEncryptionUtils.instance.initialize();
       
       // Encrypt the file if it's a supported type
       if (PDFEncryptionUtils.shouldEncrypt(tempFilePath)) {
         // Encrypt the downloaded file
-        await PDFEncryptionUtils.encryptFile(tempFilePath, finalFilePath);
+        await PDFEncryptionUtils.instance.encryptFile(tempFilePath, finalFilePath);
         
         // Delete the temporary file after encryption
         if (await tempFile.exists()) {
@@ -1166,7 +1167,7 @@ class GoogleDriveDownloader {
             await File(encryptedPath).delete();
           }
           
-          await PDFEncryptionUtils.encryptFile(downloadedFilePath, encryptedPath);
+          await PDFEncryptionUtils.instance.encryptFile(downloadedFilePath, encryptedPath);
           
           // Replace original with encrypted
           final encryptedFile = File(encryptedPath);
@@ -1201,7 +1202,7 @@ class GoogleDriveDownloader {
       // Check if the file is encrypted
       if (await DownloadedFolderEncryptionService.isFileEncrypted(filePath)) {
         // Decrypt and return the file content
-        return await PDFEncryptionUtils.decryptFile(filePath);
+        return await PDFEncryptionUtils.instance.decryptFile(filePath);
       } else {
         // Return the raw file content if not encrypted
         return await File(filePath).readAsBytes();
@@ -1521,7 +1522,7 @@ class GoogleDriveService {
       // Encrypt the file if it's a supported type
       if (PDFEncryptionUtils.shouldEncrypt(tempFilePath)) {
         // Encrypt the downloaded file
-        await PDFEncryptionUtils.encryptFile(tempFilePath, finalFilePath);
+        await PDFEncryptionUtils.instance.encryptFile(tempFilePath, finalFilePath);
         
         // Delete the temporary file after encryption
         if (await tempFile.exists()) {

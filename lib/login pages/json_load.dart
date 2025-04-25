@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:futapedia/home/first_semester.dart';
 import 'package:futapedia/home/home.dart';
 import 'package:futapedia/home/second_semester.dart';
@@ -36,7 +37,7 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _initializeApp() async {
   // Start both operations in parallel
-  final splashDelay = Future.delayed(Duration(seconds: 6));
+  final splashDelay = Future.delayed(Duration(seconds: 4));
   final adsInitialization = MobileAds.instance.initialize();
   
   // Wait for both to complete
@@ -58,8 +59,8 @@ class _MainScreenState extends State<MainScreen> {
             body: Center(
               child: Lottie.asset(
                 'jsons/loading.json',
-                width: 200,
-                height: 200,
+                width: 200.w,
+                height: 200.h,
                 fit: BoxFit.contain,
               ),
             ),

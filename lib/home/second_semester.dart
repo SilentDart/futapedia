@@ -2,11 +2,14 @@ import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:futapedia/ads/native_ad.dart';
 import 'package:futapedia/firebase_services.dart/get_semester.dart';
 import 'package:futapedia/settings/theme.dart';
+// import 'package:futapedia/settings/theme_provider.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
+// import 'package:provider/provider.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -350,7 +353,7 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
         
         // Cache the results
         await FirebaseQueryCacheSecondSemester.saveQueryResult(_level100CacheKey, courses100);
-        print("Fetched and cached ${courses100.length} 100L courses");
+        // print("Fetched and cached ${courses100.length} 100L courses");
       }
       
       // Fetch 200L courses if needed
@@ -538,7 +541,7 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
         child: _isLoading 
           ? _buildLoadingIndicator()
           : Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
+              padding: EdgeInsets.symmetric(horizontal: 15.w),
               child: RefreshIndicator(
                 onRefresh: _refreshData,
                 color: themeColor!,
@@ -547,11 +550,11 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 20),
+                      SizedBox(height: 20.h),
                       _buildHeader(),
-                      const SizedBox(height: 20),
+                      SizedBox(height: 20.h),
                       _buildSearchBar(),
-                      const SizedBox(height: 20),
+                      SizedBox(height: 20.h),
                       _isSearching
                         ? _buildSearchResultsWidget()
 
@@ -561,35 +564,35 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
 
                             _buildSectionHeader("🔥 Trending Courses", showRefreshButton: true),
                             _buildHorizontalCourseList(),
-                            const SizedBox(height: 20),
+                            SizedBox(height: 20.h),
                             
                             
-                            const SizedBox(height: 20),
+                            SizedBox(height: 20.h),
                             _buildSectionTitle("    📚 100L Tutorial Videos"),
-                            const SizedBox(height: 10),
+                            SizedBox(height: 10.h),
                             level100Courses.isEmpty
                               ? _buildEmptyCoursesMessage("No 100 Level courses available")
                               : _buildCourseGrid(level100Courses),
                             
                             _firstNativeAd,
-                            SizedBox(height:30),
+                            SizedBox(height:30.h),
                             _buildSectionTitle("    📚 200L Tutorial Videos"),
-                            const SizedBox(height: 10),
+                            SizedBox(height: 10.h),
                             level200Courses.isEmpty
                               ? _buildEmptyCoursesMessage("No 200 Level courses available")
                               : _buildCourseGrid(level200Courses),
                             
-                            SizedBox(height:20),
+                            SizedBox(height:20.h),
                             _secondNativeAd,
-                            SizedBox(height:30),
+                            SizedBox(height:30.h),
                             
                             _buildSectionTitle("    📚 300L Tutorial Videos"),
-                            const SizedBox(height: 10),
+                            SizedBox(height: 10.h),
                             level300Courses.isEmpty
                               ? _buildEmptyCoursesMessage("No 300 Level courses available")
                               : _buildCourseGrid(level300Courses),
                             
-                            SizedBox(height:20),
+                            SizedBox(height:20.h),
                             _thirdNativeAd,
                           ],
                         ),
@@ -608,13 +611,13 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
   
   Widget _buildCacheInfo() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 15),
+      padding: EdgeInsets.symmetric(vertical: 15.h),
       child: Center(
         child: Text(
           "Pull down to refresh",
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 12.sp,
             color: Colors.grey[600],
           ),
         ),
@@ -623,7 +626,6 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
   }
   
   Widget _buildSectionHeader(String title, {bool showRefreshButton = false}) {
-
     return FutureBuilder<Color>(
       future: ThemeColorManager.getSavedColorWithShade(600), // Using a slightly darker shade for text
       builder: (context, snapshot) {
@@ -635,20 +637,20 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
           children: [
             Text(
               title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold, color: Colors.black),
             ),
             if (showRefreshButton)
               _isRefreshing
                 ? SizedBox(
-                    width: 20,
-                    height: 20,
+                    width: 20.w,
+                    height: 20.h,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2,
+                      strokeWidth: 2.w,
                       color: Colors.black,
                     ),
                   )
                 : IconButton(
-                    icon: Icon(Icons.refresh, color: themeColor),
+                    icon: Icon(Icons.refresh, color: themeColor, size:20.sp),
                     onPressed: _refreshData,
                     tooltip: 'Refresh course data',
                   ),
@@ -663,14 +665,14 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          LoadingAnimationWidget.staggeredDotsWave(color: Colors.brown,size: 50),
+          LoadingAnimationWidget.staggeredDotsWave(color: Colors.brown,size: 40.w),
 
-          SizedBox(height: 20),
+          SizedBox(height: 20.h),
           
           Text(
             "Loading courses...",
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 16.sp,
               color: Colors.brown,
             ),
           ),
@@ -687,12 +689,12 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
         final Color themeColor= snapshot.hasData ? snapshot.data! : Colors.black;
         
         return Container(
-          padding: EdgeInsets.all(20),
+          padding: EdgeInsets.all(20.r),
           alignment: Alignment.center,
           child: Text(
             message,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 16.sp,
               color: themeColor,
             ),
           ),
@@ -706,10 +708,10 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
     if (_searchResults.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding:EdgeInsets.all(20.0.r),
           child: Text(
             "No courses found matching '${_searchController.text}'",
-            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 16.sp, color: Colors.grey[600]),
           ),
         ),
       );
@@ -719,10 +721,10 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10.0),
+          padding: EdgeInsets.symmetric(vertical: 10.h),
           child: Text(
             "Search Results (${_searchResults.length})",
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
           ),
         ),
         _buildCourseGrid(_searchResults),
@@ -738,10 +740,10 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
         // Default color while loading
         final Color themeColor= snapshot.hasData ? snapshot.data! : Colors.black;
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(20.r),
           decoration: BoxDecoration(
             color: themeColor,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(36.r),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -750,17 +752,17 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Yo, ${scholar ?? "Scholar"}!',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                    ' Yo, ${scholar ?? "Scholar"}!',
+                    style: TextStyle(fontSize: 23.sp, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
-                  const Text(
-                    "Ready to ace your courses?",
-                    style: TextStyle(fontSize: 12, color: Colors.white70),
+                  Text(
+                    " Ready to ace your courses?",
+                    style: TextStyle(fontSize: 13.sp, color: Colors.white70),
                   ),
                 ],
               ),
               CircleAvatar(
-                radius: 25,
+                radius: 30.r,
                 backgroundImage: _getProfileImage(),
                 onBackgroundImageError: (exception, stackTrace) {
                   // If there's an error loading the network image, it will fall back to default
@@ -794,26 +796,34 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
       builder: (context, snapshot) {
         // Default color while loading
         final Color themeColor = snapshot.hasData ? snapshot.data! : Colors.black;
-
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          margin: EdgeInsets.symmetric(horizontal: 8.w),
+          padding: EdgeInsets.symmetric(horizontal: 15.w), // Reduced horizontal padding
+          height: 32.h, // Slightly increased height for better alignment
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(60.r),
             boxShadow: [
-              BoxShadow(color: Colors.black12, blurRadius: 4, spreadRadius: 1),
+              BoxShadow(color: Colors.black12, blurRadius: 4.r, spreadRadius: 1.r),
             ],
           ),
-          child: TextField(
-            controller: _searchController,
-            onChanged: _performSearch,
-            decoration: InputDecoration(
-              hintText: "Search courses...",
-              border: InputBorder.none,
-              icon: Icon(Icons.search, color: themeColor),
-              suffixIcon: _searchController.text.isNotEmpty
+          child: Center(
+            child: TextField(
+              controller: _searchController,
+              onChanged: _performSearch,
+              style: TextStyle(color: Colors.black, fontSize: 14.sp), // Explicitly set text color to black
+              decoration: InputDecoration(
+                hintText: "Search courses...",
+                hintStyle: TextStyle(color: Colors.grey[600], fontSize: 17.sp), // Style hint text
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(vertical: 10.h),
+                isDense: true, 
+                icon: Icon(Icons.search, color: themeColor, size: 30.sp), // Reduced icon size for better alignment
+                suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: Icon(Icons.clear, color: themeColor),
+                      icon: Icon(Icons.clear, color: themeColor, size: 18.sp), 
+                      padding: EdgeInsets.zero, // Remove padding from the clear button
+                      constraints: BoxConstraints(), // Minimal constraints
                       onPressed: () {
                         _searchController.clear();
                         _performSearch("");
@@ -821,6 +831,7 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
                       },
                     )
                   : null,
+              ),
             ),
           ),
         );
@@ -831,7 +842,7 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
     );
   }
 
@@ -839,12 +850,12 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
     // If no courses available, show only the sponsored card
     if (level100Courses.isEmpty && level200Courses.isEmpty && level300Courses.isEmpty) {
       return SizedBox(
-        height: 90,
+        height: 90.h,
         child: Center(
           child: Text(
             "Pull down to refresh courses",
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 14.sp,
               color: Colors.grey[600],
             ),
           ),
@@ -869,7 +880,7 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
     }
     
     return SizedBox(
-      height: 90,
+      height: 70.h,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: trendingCourses.length,
@@ -889,16 +900,17 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
         return GestureDetector(
           onTap: () => _navigateToCourse(courseName),
           child: Container(
-            margin: const EdgeInsets.all(8),
-            padding: const EdgeInsets.all(10),
+            margin: EdgeInsets.all(8.r),
+            padding: EdgeInsets.symmetric(horizontal:17.w),
+            
             decoration: BoxDecoration(
               color: themeColor,
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(30.r),
             ),
             child: Center(
               child: Text(
                 courseName,
-                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Colors.white, fontSize: 14.sp, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -908,33 +920,31 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
   }
 
   Widget _buildCourseGrid(List<String> courses) {
+    // final themeColor = Provider.of<ThemeProvider>(context).themeColor;
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 2.5,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
+        childAspectRatio: 1.5.sp,
+        crossAxisSpacing: 25.sp,
+        mainAxisSpacing: 25.sp,
       ),
       itemCount: courses.length,
       itemBuilder: (context, index) {
         return GestureDetector(
           onTap: () => _navigateToCourse(courses[index]),
           child: Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: EdgeInsets.all(8.0.r),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(color: Colors.black12, blurRadius: 5, spreadRadius: 1),
-                ],
+                color: Colors.grey[300],//themeColor[100],
+                borderRadius: BorderRadius.circular(40.r),
               ),
               child: Center(
                 child: Text(
                   courses[index],
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.bold),
                 ),
               ),
             ),

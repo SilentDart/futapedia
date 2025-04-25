@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 // import 'package:shared_preferences/shared_preferences.dart';
@@ -36,7 +37,7 @@ class AppUpdateChecker {
         // debugPrint('⚙️ Setting Remote Config settings...');
         await remoteConfig.setConfigSettings(RemoteConfigSettings(
           fetchTimeout: const Duration(minutes: 1),
-          minimumFetchInterval: const Duration(hours: 1),
+          minimumFetchInterval: const Duration(hours: 10),
         ));
         // debugPrint('✅ Remote Config settings applied successfully');
 
@@ -50,7 +51,7 @@ class AppUpdateChecker {
 
         // Fetch the latest values
         // debugPrint('🔄 Fetching and activating Remote Config values...');
-        // bool fetchSuccess = await remoteConfig.fetchAndActivate();
+        await remoteConfig.fetchAndActivate();
         // debugPrint('📥 Fetch and activate result: ${fetchSuccess ? "New values applied" : "No new values found"}');
         
         // Log the values we got from Remote Config
@@ -76,7 +77,7 @@ class AppUpdateChecker {
   // Check if update is required
   Future<UpdateStatus> checkForUpdate() async {
     try {
-      // debugPrint('🔄 Starting update check process...');
+      debugPrint('🔄 Starting update check process...');
       
       // // Get current app version
       // debugPrint('📱 Retrieving current app version...');
@@ -89,10 +90,10 @@ class AppUpdateChecker {
       final updatedVersion = _remoteConfig.getString(KEY_UPDATED_VERSION);
       final updatedMessage = _remoteConfig.getString(KEY_UPDATED_MESSAGE);
       
-      // debugPrint('📋 Remote Config values:');
-      // debugPrint('   - Updated version: $updatedVersion');
-      // debugPrint('   - Update message: $updatedMessage');
-      // debugPrint('   - Grace period: $DEFAULT_GRACE_PERIOD days (fixed)');
+      debugPrint('📋 Remote Config values:');
+      debugPrint('   - Updated version: $updatedVersion');
+      debugPrint('   - Update message: $updatedMessage');
+      debugPrint('   - Grace period: $DEFAULT_GRACE_PERIOD days (fixed)');
 
       // Compare versions
       final bool isNewer = _isVersionNewer(updatedVersion, currentVersion);
@@ -141,6 +142,7 @@ class AppUpdateChecker {
         return false;
       }
     }
+    debugPrint("$required");
     debugPrint('🔄 Versions are equal');
     return false; // Versions are equal
   }
@@ -253,94 +255,99 @@ class UpdateDialog extends StatelessWidget {
     }
 
     return AlertDialog(
-  shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(16),
-  ),
-  title: Row(
-    children: [
-      Icon(
-        Icons.school,
-        color: Theme.of(context).primaryColor,
-        size: 28,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(30.r),
       ),
-      SizedBox(width: 12),
-      Expanded(
-        child: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+      titlePadding: EdgeInsets.fromLTRB(40.w, 20.h, 20.w, 10.h),
+      contentPadding: EdgeInsets.fromLTRB(40.w, 0, 20.w, 10.h),
+      actionsPadding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 10.h),
+      title: Row(
+        children: [
+          Icon(
+            Icons.school,
+            color: Theme.of(context).primaryColor,
+            size: 28.sp,
           ),
-        ),
-      ),
-    ],
-  ),
-  content: Column(
-    mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        message,
-        style: TextStyle(fontSize: 16),
-      ),
-      SizedBox(height: 16),
-      Container(
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.blue.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, color: Colors.blue),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                "Updating gives you access to new features and improvements!",
-                style: TextStyle(
-                  color: Colors.blue.shade700,
-                  fontWeight: FontWeight.w500,
-                ),
+          SizedBox(width: 15.w),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18.sp,
               ),
             ),
-          ],
-        ),
-      ),
-    ],
-  ),
-  actions: [
-    if (!updateStatus.forceUpdate)
-      TextButton(
-        onPressed: () {
-          Navigator.of(context).pop();
-          if (onLaterPressed != null) onLaterPressed!();
-        },
-        child: Text(
-          'Remind Me Later',
-          style: TextStyle(
-            color: Colors.grey.shade700,
           ),
-        ),
+        ],
       ),
-    ElevatedButton.icon(
-      onPressed: () async {
-        // Open Play Store
-        final url = Uri.parse('https://play.google.com/store/apps/details?id=${await _getPackageName()}');
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      },
-      icon: Icon(Icons.download, size: 18,color: Colors.white),
-      label: Text('Update Now'),
-      style: ElevatedButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: Theme.of(context).primaryColor,
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            message,
+            style: TextStyle(fontSize: 17.sp, fontWeight: FontWeight.w500),
+          ),
+          SizedBox(height: 16.sp),
+          Container(
+            padding: EdgeInsets.all(12.r),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue, size: 30.sp),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: Text(
+                    "Updating gives you access to new features and improvements!",
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontSize: 15.sp,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-    ),
-  ],
-);
+      actions: [
+        if (!updateStatus.forceUpdate)
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (onLaterPressed != null) onLaterPressed!();
+            },
+            child: Text(
+              'Remind Me Later',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontSize: 12.sp,
+              ),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              // Open Play Store
+              final url = Uri.parse('https://play.google.com/store/apps/details?id=${await _getPackageName()}');
+              await launchUrl(url, mode: LaunchMode.externalApplication);
+            },
+            icon: Icon(Icons.download, size: 18.sp,color: Colors.white),
+            label: Text('Update Now', style: TextStyle(fontSize: 12.sp,)),
+            style: ElevatedButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).primaryColor,
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4),
+              minimumSize: Size(0, 36.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14.r),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   static Future<String> _getPackageName() async {

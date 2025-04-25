@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import 'package:futapedia/firebase_services.dart/get_semester.dart';
@@ -64,7 +65,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
         print("Cache expired for ${widget.courseName}, fetching fresh data");
       }
     } catch (e) {
-      print("Error reading from secure storage: $e");
+      // print("Error reading from secure storage: $e");
       // Continue to fetch data if there's an error with the cache
     }
     
@@ -246,7 +247,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text("No topics available for this course"),
-              const SizedBox(height: 20),
+              SizedBox(height: 20.h),
               ElevatedButton.icon(
                 icon: Icon(Icons.refresh),
                 label: Text("Refresh"),

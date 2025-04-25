@@ -94,7 +94,7 @@ class GoogleDriveServicePQ {
       // Encrypt the file if it's a supported type
       if (PDFEncryptionUtils.shouldEncrypt(tempFilePath)) {
         // Encrypt the downloaded file
-        await PDFEncryptionUtils.encryptFile(tempFilePath, finalFilePath);
+        await PDFEncryptionUtils.instance.encryptFile(tempFilePath, finalFilePath);
         
         // Delete the temporary file after encryption
         if (await tempFile.exists()) {

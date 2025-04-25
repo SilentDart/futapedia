@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class Loading extends StatelessWidget {
@@ -11,7 +12,7 @@ class Loading extends StatelessWidget {
         body: Center(
           child: LoadingAnimationWidget.staggeredDotsWave(
             color: Colors.brown,
-            size: 50,
+            size: 50.sp,
           ),
         ),
     );

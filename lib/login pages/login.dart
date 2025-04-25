@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:futapedia/firebase_services.dart/auth.dart';
 import 'package:futapedia/login%20pages/loading.dart';
 import 'package:routemaster/routemaster.dart';
@@ -86,12 +87,12 @@ class _StudentLoginPageState extends State<StudentLoginPage> {
         ),
         child: Center(
           child: Container(
-            width: MediaQuery.of(context).size.width * 0.9,
+            width: 500.w,
             constraints: BoxConstraints(maxWidth: 400),
-            padding: EdgeInsets.all(20),
+            padding: EdgeInsets.all(40.w),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(50.r),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black12,
@@ -105,17 +106,17 @@ class _StudentLoginPageState extends State<StudentLoginPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(height: 20),
+                  SizedBox(height: 20.h),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(25), 
-                    child: Image.asset('images/futapedia.jpg', scale: 5),
+                    borderRadius: BorderRadius.circular(50.r), 
+                    child: Image.asset('images/futapedia.jpg', width: 200.r,),
                   ),
-                  SizedBox(height: 10),
+                  SizedBox(height: 10.h),
                   Text(
                     'Welcome to FUTApedia',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 40),
+                  SizedBox(height: 40.h),
                   
                   
                   ElevatedButton(
@@ -129,14 +130,14 @@ class _StudentLoginPageState extends State<StudentLoginPage> {
                       backgroundColor: Colors.white,
                       side: BorderSide(color: Colors.blue),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(20.r),
                       ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         //Image.asset('images/google_logo.jpg', height: 20),
-                        Icon(Icons.person_4_rounded, size: 23, color: Colors.black),
+                        Icon(Icons.person_4_rounded, size: 23.sp, color: Colors.black),
                         SizedBox(width: 10),
                         Text(
                           'Sign in Anonymous',
@@ -146,7 +147,7 @@ class _StudentLoginPageState extends State<StudentLoginPage> {
                     ),
                   ),
 
-                  SizedBox(height: 10),
+                  SizedBox(height: 10.h),
 
 
                   ElevatedButton(
@@ -160,14 +161,14 @@ class _StudentLoginPageState extends State<StudentLoginPage> {
                       backgroundColor: Colors.white,
                       side: BorderSide(color: Colors.blue),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(20.r),
                       ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Image.asset('images/google_logo.jpg', height: 20),
-                        SizedBox(width: 10),
+                        Image.asset('images/google_logo.jpg', height: 20.h),
+                        SizedBox(width: 10.w),
                         Text(
                           'Sign in with Google',
                           style: TextStyle(color: Colors.black),
@@ -176,7 +177,7 @@ class _StudentLoginPageState extends State<StudentLoginPage> {
                     ),
                   ),
 
-                  SizedBox(height: 20),
+                  SizedBox(height: 20.h),
 
                   
                 ],

@@ -1,15 +1,16 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:futapedia/study_material/pdf/pdf_drive.dart';
 import 'package:futapedia/study_material/services/notification_manager.dart';
-import 'package:futapedia/study_material/services/encrypted_pdfviewer.dart';
+import 'package:futapedia/study_material/services/tab_nav.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:loading_animation_widget/loading_animation_widget.dart';
-// import 'package:open_file/open_file.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
+import 'package:provider/provider.dart';
 import 'package:routemaster/routemaster.dart';
 
 
@@ -27,8 +28,21 @@ class _GoogleDriveManagerScreenState extends State<GoogleDriveManagerScreen> wit
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+    _tabController = TabController(
+      initialIndex: navProvider.activeTab,
+      length: 2,
+      vsync: this,
+    );
+    
+    // Listen for tab changes to update the provider
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        navProvider.activeTab = _tabController.index;
+      }
+    });
     _initializeDownloader();
+
   }
 
   Future<void> _initializeDownloader() async {
@@ -59,22 +73,22 @@ class _GoogleDriveManagerScreenState extends State<GoogleDriveManagerScreen> wit
                 // Updated loading screen with better visuals
                 LoadingAnimationWidget.staggeredDotsWave(
                   color: Colors.brown,
-                  size: 50,
+                  size: 40.sp,
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 20.h),
                 Text(
                   'Connecting to server...',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16.sp,
                     fontWeight: FontWeight.w500,
                     color: Colors.grey[800],
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8.h),
                 Text(
                   'Your study materials will appear shortly',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 14.sp,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -84,43 +98,59 @@ class _GoogleDriveManagerScreenState extends State<GoogleDriveManagerScreen> wit
         ),
       );
     }
+    
+    final navProvider = Provider.of<NavigationProvider>(context);
+  
+    // Ensure tab controller is in sync with provider
+    if (_tabController.index != navProvider.activeTab) {
+      _tabController.animateTo(navProvider.activeTab);
+    }
 
     return PopScope(
       canPop: false, // Prevent default system back behavior
       onPopInvokedWithResult: (bool didPop, dynamic result) {
-          if (!didPop) {
+        if (!didPop) {
             // Manually pop for system back gestures
-            Navigator.of(context).pop();
-          }
+          Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: Icon(Icons.chevron_left, size: 35,),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: const Text('Premium Notes',style: TextStyle(fontWeight: FontWeight.bold)),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(120),
-            child: Column(
-              children: [
-                // TabBar
-                TabBar(
-                  controller: _tabController,
-                  tabs: const [
-                    Tab(
-                      icon: Icon(Icons.cloud),
-                      text: 'Drive Files',
-                    ),
-                    Tab(
-                      icon: Icon(Icons.download),
-                      text: 'Downloaded',
-                    ),
-                  ],
-                ),
-                // Breadcrumb navigation will be handled by each tab
-                SizedBox(height: 48),
-              ],
+        appBar: PreferredSize(
+        preferredSize: Size.fromHeight(110.h), // You can adjust this value as needed
+          child: AppBar(
+            leading: IconButton(
+              icon: Icon(Icons.chevron_left, size: 30.sp),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: Text('Premium Notes',style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25.sp)),
+            bottom: PreferredSize(
+              preferredSize: Size.fromHeight(50.h),
+              child: Column(
+                children: [
+                  // TabBar
+                  TabBar(
+                    controller: _tabController,
+                    tabs: [
+                      Tab(
+                        icon: Icon(Icons.cloud, size: 25.sp),
+                        text: 'Drive Files',
+                      height: 50.h, // Set a fixed height
+                      ),
+                      Tab(
+                        icon: Icon(Icons.download, size: 25.sp),
+                        text: 'Downloaded',
+                      height: 50.h, // Set a fixed height
+                      ),
+                    ],
+                  labelPadding: EdgeInsets.symmetric(horizontal: 10.w), // Added .w for responsive width
+                  indicatorWeight: 3.h, // Added .h for responsive thickness
+                    labelStyle: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.bold),
+                  // unselectedLabelStyle: TextStyle(fontSize: 14.sp), // Optional: style for unselected tabs
+                  ),
+                  // Breadcrumb navigation will be handled by each tab
+                  SizedBox(height: 10.h),
+                ],
+              ),
             ),
           ),
         ),
@@ -319,80 +349,7 @@ class _EnhancedDriveExplorerTabState extends State<EnhancedDriveExplorerTab> {
     }
   }
 
-  Future<void> _downloadAndOpenFile(drive.File file) async {
-    // Check if any file is currently downloading
-    if (_isDownloading.values.contains(true)) {
-      
-      showNotify('Another download is in progress. This file will be queued');
-
-    }
-
-    setState(() {
-      _isDownloading[file.id!] = true;
-      _downloadProgress[file.id!] = 0.0;
-    });
-
-    try {
-      final notificationManager = NotificationDownloadManager();
-      
-      // Create a directory for downloads
-      final String downloadDirPath = await GoogleDriveDownloader.getDownloadDirectory();
-      final downloadDir = Directory(downloadDirPath);
-      
-      // Build relative path from breadcrumbs (excluding root and current folder)
-      String relativePath = '';
-      if (_breadcrumbs.length > 1) {
-        relativePath = _breadcrumbs.sublist(1, _breadcrumbs.length).map((f) => f.name ?? 'unnamed').join('/');
-      }
-      
-      // Start download with progress tracking
-      final filePath = await notificationManager.downloadFileWithNotification(
-        file,
-        downloadDir,
-        _driveService,
-        relativePath: relativePath,
-        onProgress: (progress) {
-          if (mounted) {
-            setState(() {
-              _downloadProgress[file.id!] = progress;
-            });
-          }
-        },
-      );
-      
-      // Open file after download
-      if (mounted && filePath != null) {
-        final decryptedContent = await GoogleDriveDownloader.openFile(filePath);
-        
-        if (decryptedContent != null) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => EncryptedFileViewer(
-                fileName: path.basename(filePath),
-                fileData: decryptedContent,
-              ),
-            ),
-          );
-        } else {
-          if (!mounted) return;
-         
-          showError('Could not open file');
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        
-        showError('Error downloading and opening file: $e');
-
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isDownloading[file.id!] = false;
-        });
-      }
-    }
-  }
+  
 
   Future<void> _downloadFolder(drive.File folder) async {
     // Check if any file is currently downloading
@@ -471,11 +428,11 @@ class _EnhancedDriveExplorerTabState extends State<EnhancedDriveExplorerTab> {
             InkWell(
               onTap: () => _navigateToBreadcrumb(i),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                 child: Text(
                   _breadcrumbs[i].name ?? 'Unnamed',
                   style: TextStyle(
-                    fontSize: 17,
+                    fontSize: 14.sp,
                     color: Theme.of(context).primaryColor,
                     fontWeight: i == _breadcrumbs.length - 1
                         ? FontWeight.bold
@@ -485,7 +442,7 @@ class _EnhancedDriveExplorerTabState extends State<EnhancedDriveExplorerTab> {
               ),
             ),
             if (i < _breadcrumbs.length - 1)
-              const Icon(Icons.chevron_right, size: 18),
+              Icon(Icons.chevron_right, size: 18.sp),
           ],
         ),
       );
@@ -496,15 +453,15 @@ class _EnhancedDriveExplorerTabState extends State<EnhancedDriveExplorerTab> {
 
   Widget _buildDriveFilesView() {
     if (_currentFolderContents.isEmpty) {
-      return const Center(
+      return  Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.folder_open, size: 48, color: Colors.grey),
-            SizedBox(height: 16),
+            Icon(Icons.folder_open, size: 48.sp, color: Colors.grey),
+            SizedBox(height: 8.h),
             Text(
               'This folder is empty',
-              style: TextStyle(fontSize: 18),
+              style: TextStyle(fontSize: 14.sp),
             ),
           ],
         ),
@@ -513,92 +470,114 @@ class _EnhancedDriveExplorerTabState extends State<EnhancedDriveExplorerTab> {
     
     return ListView.builder(
       itemCount: _currentFolderContents.length,
+      padding: EdgeInsets.symmetric(vertical: 2.h),
       itemBuilder: (context, index) {
         final item = _currentFolderContents[index];
         final isItemFolder = _driveService.isFolder(item);
+        final iconColor = isItemFolder ? Colors.amber.shade600 : Colors.red.shade400;
         
-        return ListTile(
-          leading: Icon(
-            isItemFolder ? Icons.folder : Icons.picture_as_pdf,
-            color: isItemFolder ? Colors.amber : Colors.red,
-          ),
-          title: Text(item.name ?? 'Unnamed'),
-          subtitle: !isItemFolder && item.size != null
-              ? Text(_formatFileSize(int.parse(item.size!)))
-              : null,
-          onTap: isItemFolder
-              ? () => _navigateToFolder(item)
-              : () => _downloadFile(item),
-          trailing: _isDownloading[item.id] == true
-            ? SizedBox(
-                width: 48,
-                height: 48,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      value: _downloadProgress[item.id],
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
-                      strokeWidth: 4.0,
-                    ),
-                    Text(
-                      '${((_downloadProgress[item.id] ?? 0) * 100).toInt()}%',
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  ],
+        return Card(
+          elevation: 0.5,
+          margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+          child: ListTile(
+            dense: true,            
+            contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 0),
+            visualDensity: VisualDensity(horizontal: 0, vertical: -4),
+            leading: Container(
+              width: 40.w,
+              height: 35.h,
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Center(
+                child: Icon(
+                  isItemFolder ? Icons.folder : Icons.picture_as_pdf,
+                  color: iconColor,
+                  size: 20.sp,
                 ),
-              )
-              : isItemFolder
-                  ? PopupMenuButton(
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'download',
-                          child: Row(
-                            children: const [
-                              Icon(Icons.download),
-                              SizedBox(width: 8),
-                              Text('Download'),
-                            ],
-                          ),
-                        ),
-                      ],
-                      onSelected: (value) {
-                        if (value == 'download') {
-                          _downloadFolder(item);
-                        }
-                      },
-                    )
-                  : PopupMenuButton(
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'download',
-                          child: Row(
-                            children: const [
-                              Icon(Icons.download),
-                              SizedBox(width: 8),
-                              Text('Download'),
-                            ],
-                          ),
-                        ),
-                        // PopupMenuItem(
-                        //   value: 'view',
-                        //   child: Row(
-                        //     children: const [
-                        //       Icon(Icons.visibility),
-                        //       SizedBox(width: 8),
-                        //       Text('View'),
-                        //     ],
-                        //   ),
-                        // ),
-                      ],
-                      onSelected: (value) {
-                        if (value == 'download') {
-                          _downloadFile(item);
-                        } else if (value == 'view') {
-                          _downloadAndOpenFile(item);
-                        }
-                      },
+              ),
+            ),
+            title: Text(
+              item.name ?? 'Unnamed',
+              style: TextStyle(
+                fontSize: 14.sp, 
+                fontWeight: FontWeight.w500, 
+                color: Colors.black87
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 2.h),
+                if (!isItemFolder && item.size != null)
+                  Text(
+                    _formatFileSize(int.parse(item.size!)),
+                    style: TextStyle(
+                      fontSize: 11.sp, 
+                      color: Colors.black54
                     ),
+                  )
+                else if (isItemFolder)
+                  Text(
+                    'Folder',
+                    style: TextStyle(
+                      fontSize: 11.sp, 
+                      color: Colors.black54
+                    ),
+                  ),
+              ],
+            ),
+            onTap: isItemFolder
+                ? () => _navigateToFolder(item)
+                : () => _downloadFile(item),
+            trailing: _isDownloading[item.id] == true
+              ? SizedBox(
+                  width: 40.w,
+                  height: 30.h,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        value: _downloadProgress[item.id],
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                        strokeWidth: 3.w,
+                        backgroundColor: Colors.grey.withOpacity(0.2),
+                      ),
+                      Text(
+                        '${((_downloadProgress[item.id] ?? 0) * 100).toInt()}%',
+                        style: TextStyle(
+                          fontSize: 10.sp, 
+                          fontWeight: FontWeight.bold, 
+                          color: Colors.green
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                : SizedBox(
+                    width: 36.w,
+                    height: 36.h,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () {
+                          isItemFolder 
+                            ? _downloadFolder(item) 
+                            : _downloadFile(item);
+                        },
+                        child: Icon(
+                          Icons.download_rounded,
+                          size: 20.sp,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
         );
       },
     );
@@ -619,9 +598,9 @@ class _EnhancedDriveExplorerTabState extends State<EnhancedDriveExplorerTab> {
         children: [
           // Breadcrumb navigation
           Container(
-            height: 48,
+            height: 48.h,
             alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -635,7 +614,7 @@ class _EnhancedDriveExplorerTabState extends State<EnhancedDriveExplorerTab> {
             child: _isLoading 
               ? LoadingAnimationWidget.staggeredDotsWave(
                 color: Colors.brown,
-                size: 50,
+                size: 40.sp,
               )
               : _buildDriveFilesView(),
           ),
@@ -669,6 +648,13 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
   @override
   void initState() {
     super.initState();
+    final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+    
+    if (navProvider.currentPath.isNotEmpty && navProvider.breadcrumbs.isNotEmpty) {
+      // Restore state from provider
+      _currentPath = navProvider.currentPath;
+      _breadcrumbs = List.from(navProvider.breadcrumbs);
+    }
     _loadDownloadedFiles();
   }
 
@@ -784,11 +770,21 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
       
 
       if (decryptedContent != null) {
+        if (mounted) {
+        final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+          navProvider.setTabAndPath(
+            1, // 1 is the index for Downloaded tab
+            _currentPath,
+            List.from(_breadcrumbs) // Create a copy of breadcrumbs
+          );
+        }
         // Navigate to file viewer
         FileViewerState.fileData = decryptedContent;
         FileViewerState.fileName = path.basename(file.path);
         if (!mounted) return;
-        Routemaster.of(context).push('/encryptedpdfviewer');
+
+        // Use Routemaster as before, but with additional parameters
+        Routemaster.of(context).push('/encryptedpdfviewer?');
       } else {
         if (!mounted) return;
         showError('Could not open file');
@@ -802,46 +798,45 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
 
 
   // Check if video is available for the current folder
-  // Check if video is available for the current folder
-Future<bool> _checkVideoAvailability() async {
-  if (_breadcrumbs.isEmpty) return false;
-  
-  // Get the last folder name from breadcrumbs
-  final String folderName = _breadcrumbs.last.name;
-  final String strippedName = folderName.replaceAll(' ', '');
+  Future<bool> _checkVideoAvailability() async {
+    if (_breadcrumbs.isEmpty) return false;
+    
+    // Get the last folder name from breadcrumbs
+    final String folderName = _breadcrumbs.last.name;
+    final String strippedName = folderName.replaceAll(' ', '');
 
-  // Updated regex pattern: first 3 alphabetic characters followed by 3 digits
-  RegExp coursePattern = RegExp(r'^[A-Za-z]{3}\d{3}');
-  // Check both original and stripped versions
-  if (!coursePattern.hasMatch(folderName) && !coursePattern.hasMatch(strippedName)) return false;
-  
-  // Try with original name
-  String? cachedData = await _secureStorage.read(key: 'course_$folderName');
-  
-  // If not found, try with whitespace stripped
-  cachedData ??= await _secureStorage.read(key: 'course_$strippedName');
-  
-  return cachedData != null;
-}
-
-// Navigate to video route
-void _navigateToVideo() {
-  if (_breadcrumbs.isEmpty) return;
-  
-  // Get the last folder name from breadcrumbs
-  final String folderName = _breadcrumbs.last.name;
-  final String strippedName = folderName.replaceAll(' ', '');
-
-  // Updated regex pattern: first 3 alphabetic characters followed by 3 digits
-  RegExp coursePattern = RegExp(r'^[A-Za-z]{3}\d{3}');
-  // Check both original and stripped versions
-  if (!coursePattern.hasMatch(folderName) && !coursePattern.hasMatch(strippedName)) {
-    showError('Invalid course folder format');
-    return;
+    // Updated regex pattern: first 3 alphabetic characters followed by 3 digits
+    RegExp coursePattern = RegExp(r'^[A-Za-z]{3}\d{3}');
+    // Check both original and stripped versions
+    if (!coursePattern.hasMatch(folderName) && !coursePattern.hasMatch(strippedName)) return false;
+    
+    // Try with original name
+    String? cachedData = await _secureStorage.read(key: 'course_$folderName');
+    
+    // If not found, try with whitespace stripped
+    cachedData ??= await _secureStorage.read(key: 'course_$strippedName');
+    
+    return cachedData != null;
   }
-  
-      
-    // Try with original name first
+
+  // Navigate to video route
+  void _navigateToVideo() {
+    if (_breadcrumbs.isEmpty) return;
+    
+    // Get the last folder name from breadcrumbs
+    final String folderName = _breadcrumbs.last.name;
+    final String strippedName = folderName.replaceAll(' ', '');
+
+    // Updated regex pattern: first 3 alphabetic characters followed by 3 digits
+    RegExp coursePattern = RegExp(r'^[A-Za-z]{3}\d{3}');
+    // Check both original and stripped versions
+    if (!coursePattern.hasMatch(folderName) && !coursePattern.hasMatch(strippedName)) {
+      showError('Invalid course folder format');
+      return;
+    }
+    
+        
+      // Try with original name first
     _secureStorage.read(key: 'course_$folderName').then((data) {
       if (data != null) {
         if(!mounted) return;
@@ -872,11 +867,11 @@ void _navigateToVideo() {
             InkWell(
               onTap: () => _navigateToBreadcrumb(i),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 4.h),
                 child: Text(
                   _breadcrumbs[i].name,
                   style: TextStyle(
-                    fontSize: 17,
+                    fontSize: 15.sp,
                     color: Theme.of(context).primaryColor,
                     fontWeight: i == _breadcrumbs.length - 1
                         ? FontWeight.bold
@@ -886,7 +881,7 @@ void _navigateToVideo() {
               ),
             ),
             if (i < _breadcrumbs.length - 1)
-              const Icon(Icons.chevron_right, size: 18),
+              Icon(Icons.chevron_right, size: 18.sp),
           ],
         ),
       );
@@ -913,12 +908,12 @@ void _navigateToVideo() {
     }
     
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 5,
-        childAspectRatio: 0.8,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 16,
+      padding: EdgeInsets.all(16.r),
+      gridDelegate:  SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 110.w,
+        childAspectRatio: .8,
+        crossAxisSpacing: 12.w,
+        mainAxisSpacing: 16.h,
       ),
       itemCount: _downloadedFiles.length,
       itemBuilder: (context, index) {
@@ -945,9 +940,9 @@ void _navigateToVideo() {
             ? () => _navigateToLocalDirectory(entity.path)
             : () => _openFile(entity as File),
           child: Card(
-            elevation: 3,
+            elevation: 5,
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding:  EdgeInsets.all(10.r),
               child: Column(
                 children: [
                   // Icon section - flexible but with minimum height
@@ -959,13 +954,13 @@ void _navigateToVideo() {
                           ? Icons.folder
                           : isPdf
                             ? Icons.picture_as_pdf
-                            : Icons.insert_drive_file,
+                            : Icons.photo,
                         color: isDirectory
                           ? Colors.amber
                           : isPdf
                             ? Colors.red
-                            : Colors.grey,
-                        size: 30,
+                            : Colors.blue,
+                        size: 35.sp,
                       ),
                     ),
                   ),
@@ -981,7 +976,7 @@ void _navigateToVideo() {
                             textAlign: TextAlign.center,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 10),
+                            style: TextStyle(fontSize: 12.sp),
                           ),
                         ),
                       ],
@@ -1010,7 +1005,7 @@ void _navigateToVideo() {
         children: [
           // Breadcrumb navigation
           Container(
-            height: 48,
+            height: 48.h,
             alignment: Alignment.centerLeft,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -1029,8 +1024,8 @@ void _navigateToVideo() {
                 if (_isVideoAvailable)
                   TextButton.icon(
                     onPressed: _navigateToVideo,
-                    icon: const Icon(Icons.play_circle_fill),
-                    label: const Text('Video available'),
+                    icon: Icon(Icons.play_circle_fill,size: 20.sp),
+                    label: Text('Video available',style: TextStyle(fontSize: 13.sp),),
                     style: TextButton.styleFrom(
                       foregroundColor: Theme.of(context).primaryColor,
                     ),
@@ -1044,7 +1039,7 @@ void _navigateToVideo() {
             child: _isLoadingDownloads
               ? LoadingAnimationWidget.staggeredDotsWave(
                 color: Colors.brown,
-                size: 50,
+                size: 40.sp,
               )
               : _buildDownloadedFilesGrid(),
           ),
@@ -1053,7 +1048,8 @@ void _navigateToVideo() {
     );
   }
 }
-// Helper class for directory breadcrumb navigation
+
+
 class DirectoryInfo {
   final String id;
   final String name;
@@ -1061,8 +1057,6 @@ class DirectoryInfo {
 
   DirectoryInfo({required this.id, required this.name, required this.path});
 }
-
-
 
 
 class FileViewerState {

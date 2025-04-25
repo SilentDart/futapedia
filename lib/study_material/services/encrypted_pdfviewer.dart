@@ -5,6 +5,7 @@ import 'package:futapedia/study_material/services/encrypt_utils.dart';
 import 'package:math_expressions/math_expressions.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+import 'package:routemaster/routemaster.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart' as syncfusion;
 import 'package:photo_view/photo_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,6 +27,7 @@ class EncryptedFileViewer extends StatefulWidget {
 }
 
 class _EncryptedFileViewerState extends State<EncryptedFileViewer> {
+  // final TabNavigationService _tabService = TabNavigationService();
   bool _isLoading = true;
   bool _isError = false;
   String _errorMessage = '';
@@ -111,11 +113,14 @@ class _EncryptedFileViewerState extends State<EncryptedFileViewer> {
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _isError = true;
-        _errorMessage = 'Failed to prepare file: ${e.toString()}';
-      });
+      if(mounted){
+        setState(() {
+          _isLoading = false;
+          _isError = true;
+          _errorMessage = 'Failed to prepare file: ${e.toString()}';
+        });
+      }
+      
     }
   }
   
@@ -255,10 +260,15 @@ class _EncryptedFileViewerState extends State<EncryptedFileViewer> {
     });
   }
   
+    
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: Icon(Icons.chevron_left, size: 35,),
+          onPressed:  () => Routemaster.of(context).pop(),
+        ),
         title: Text(widget.fileName),
         actions: [
           // Add calculator icon
@@ -863,7 +873,7 @@ class _SecureImageGalleryScreenState extends State<SecureImageGalleryScreen> {
     // Pre-decrypt all images
     _decryptedImages = widget.images.map((image) async {
       try {
-        return await PDFEncryptionUtils.decryptFile(image.path);
+        return await PDFEncryptionUtils.instance.decryptFile(image.path);
       } catch (e) {
         print('Decryption error: $e');
         // Fallback to original file if decryption fails
@@ -882,6 +892,10 @@ class _SecureImageGalleryScreenState extends State<SecureImageGalleryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: Icon(Icons.chevron_left, size: 35,),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text('Image ${_currentIndex + 1} of ${widget.images.length}'),
       ),
       body: PhotoViewGallery.builder(
