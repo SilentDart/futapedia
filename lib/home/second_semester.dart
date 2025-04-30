@@ -544,6 +544,7 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
               padding: EdgeInsets.symmetric(horizontal: 15.w),
               child: RefreshIndicator(
                 onRefresh: _refreshData,
+                strokeWidth: 2.w, 
                 color: themeColor!,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -665,7 +666,7 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          LoadingAnimationWidget.staggeredDotsWave(color: Colors.brown,size: 40.w),
+          LoadingAnimationWidget.staggeredDotsWave(color: Colors.brown,size: 40.sp),
 
           SizedBox(height: 20.h),
           
@@ -925,10 +926,10 @@ class _SecondSemesterState extends State<SecondSemester> with AutomaticKeepAlive
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.5.sp,
-        crossAxisSpacing: 25.sp,
-        mainAxisSpacing: 25.sp,
+        crossAxisCount: 3,
+        childAspectRatio: 1.7,
+        crossAxisSpacing: 10.w,
+        mainAxisSpacing: 10.h,
       ),
       itemCount: courses.length,
       itemBuilder: (context, index) {

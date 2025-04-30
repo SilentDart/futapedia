@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:futapedia/firebase_services.dart/get_semester.dart';
 import 'package:futapedia/test.dart/test_page.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class SubjectSelectionPage extends StatefulWidget {
   final String level;
@@ -56,34 +58,37 @@ class _SubjectSelectionPageState extends State<SubjectSelectionPage> {
     return  PopScope(
       canPop: true,
       child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: Icon(Icons.chevron_left, size: 35,),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: Text(
-            'SUBJECTS', 
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          centerTitle: true,
-          elevation: 0,
-          backgroundColor: Colors.indigo.shade700,
-          actions: [
-            IconButton(
-              icon: Icon(Icons.search, color: Colors.white),
-              onPressed: () {
-                // Implement search functionality
-                showSearch(
-                  context: context,
-                  delegate: SubjectSearchDelegate(semester: semester, level: widget.level),
-                );
-              },
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(40.h), 
+          child: AppBar(
+            leading: IconButton(
+              icon: Icon(Icons.chevron_left, size: 30.sp,color: Colors.white,),
+              onPressed: () => Navigator.pop(context),
             ),
-          ],
+            title: Text(
+              'SUBJECTS', 
+              style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            centerTitle: true,
+            elevation: 0,
+            backgroundColor: Colors.indigo.shade700,
+            actions: [
+              IconButton(
+                icon: Icon(Icons.search, color: Colors.white, size: 28.sp),
+                onPressed: () {
+                  // Implement search functionality
+                  showSearch(
+                    context: context,
+                    delegate: SubjectSearchDelegate(semester: semester, level: widget.level),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
 
         body: isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? Center(child: LoadingAnimationWidget.staggeredDotsWave(color: Colors.indigo.shade700, size: 50.sp,))
           : Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -96,7 +101,7 @@ class _SubjectSelectionPageState extends State<SubjectSelectionPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                    padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 16.h),
                     color: Colors.indigo.shade700,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,22 +110,22 @@ class _SubjectSelectionPageState extends State<SubjectSelectionPage> {
                           'Level: ${widget.level}',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 16.sp,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        SizedBox(height: 3.h),
                         Text(
                           'Semester: ${semester ?? "Loading..."}',
                           style: TextStyle(
                             color: Colors.white70,
-                            fontSize: 14,
+                            fontSize: 15.sp,
                           ),
                         ),
                       ],
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: EdgeInsets.all(18.r),
                   ),
                   Expanded(
                     child: StreamBuilder<QuerySnapshot>(
@@ -133,7 +138,7 @@ class _SubjectSelectionPageState extends State<SubjectSelectionPage> {
                           .snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
-                          return Center(child: CircularProgressIndicator());
+                          return Center(child: LoadingAnimationWidget.staggeredDotsWave(color: Colors.indigo.shade700, size: 50.sp,));
                         }
 
                         if (snapshot.hasError) {
@@ -141,10 +146,10 @@ class _SubjectSelectionPageState extends State<SubjectSelectionPage> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.error_outline, size: 48, color: Colors.red),
-                                SizedBox(height: 16),
+                                Icon(Icons.error_outline, size: 50.sp, color: Colors.red),
+                                SizedBox(height: 14.h),
                                 Text('Error: ${snapshot.error}'),
-                                SizedBox(height: 16),
+                                SizedBox(height: 14.h),
                                 ElevatedButton(
                                   onPressed: () {
                                     setState(() {
@@ -163,18 +168,18 @@ class _SubjectSelectionPageState extends State<SubjectSelectionPage> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                SizedBox(height: 16),
+                                SizedBox(height: 16.h),
                                 Text(
                                   'No subjects available yet',
                                   style: TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 20.sp,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                SizedBox(height: 8),
+                                SizedBox(height: 6.h),
                                 Text(
                                   'Check back later or contact your department',
-                                  style: TextStyle(color: Colors.grey),
+                                  style: TextStyle(color: Colors.grey, fontSize:18.sp),
                                 ),
                               ],
                             ),
@@ -184,13 +189,13 @@ class _SubjectSelectionPageState extends State<SubjectSelectionPage> {
                         List<DocumentSnapshot> subjects = snapshot.data!.docs;
 
                         return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          padding: EdgeInsets.symmetric(horizontal: 16.w),
                           child: GridView.builder(
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 2,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: 1,
+                            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: 148.w,
+                              crossAxisSpacing: 17.w,
+                              mainAxisSpacing: 17.h,
+                              childAspectRatio: .9,
                             ),
                             itemCount: subjects.length,
                             itemBuilder: (context, index) {
@@ -212,10 +217,10 @@ class _SubjectSelectionPageState extends State<SubjectSelectionPage> {
                                 child: Card(
                                   elevation: 4,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(16.r),
                                   ),
                                   child: Container(
-                                    padding: EdgeInsets.all(12),
+                                    padding: EdgeInsets.all(16.r),
                                     decoration: BoxDecoration(
                                       gradient: LinearGradient(
                                         colors: [
@@ -225,7 +230,7 @@ class _SubjectSelectionPageState extends State<SubjectSelectionPage> {
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                       ),
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(14.r),
                                     ),
                                     child: Column(
                                       mainAxisAlignment: MainAxisAlignment.center,
@@ -233,13 +238,13 @@ class _SubjectSelectionPageState extends State<SubjectSelectionPage> {
                                         Icon(
                                           _getSubjectIcon(subjectName),
                                           color: Colors.white,
-                                          size: 36,
+                                          size: 28.sp,
                                         ),
-                                        SizedBox(height: 12),
+                                        SizedBox(height: 4.h),
                                         Text(
                                           subjectName,
                                           style: TextStyle(
-                                            fontSize: 16,
+                                            fontSize: 16.sp,
                                             fontWeight: FontWeight.bold,
                                             color: Colors.white,
                                           ),
@@ -249,11 +254,12 @@ class _SubjectSelectionPageState extends State<SubjectSelectionPage> {
                                         ),
                                         if (subjectCode.isNotEmpty) 
                                           Padding(
-                                            padding: const EdgeInsets.only(top: 4.0),
+                                            padding: EdgeInsets.only(top: 6.h),
                                             child: Text(
                                               subjectCode,
                                               style: TextStyle(
-                                                fontSize: 12,
+                                                fontSize: 15.sp,
+                                                fontWeight: FontWeight.bold,
                                                 color: Colors.white70,
                                               ),
                                             ),
@@ -349,7 +355,7 @@ class SubjectSearchDelegate extends SearchDelegate {
   Widget buildSearchResults() {
     if (semester == null || query.trim().isEmpty) {
       return Center(
-        child: Text('Enter a subject name to search'),
+        child: Text('Enter a subject name to search', style: TextStyle(fontSize:12.sp)),
       );
     }
 
@@ -363,11 +369,11 @@ class SubjectSearchDelegate extends SearchDelegate {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+          return Center(child: LoadingAnimationWidget.staggeredDotsWave(color: Colors.indigo.shade700,size: 50.sp,));
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(child: Text('No subjects found'));
+          return Center(child: Text('No subjects found', style: TextStyle(fontSize: 12.5.sp)));
         }
 
         // Filter subjects based on search query

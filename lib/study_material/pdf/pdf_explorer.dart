@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:futapedia/study_material/services/downloader.dart';
+import 'package:futapedia/templates/snackbar.dart';
 import 'package:futapedia/study_material/pdf/pdf_drive.dart';
 import 'package:futapedia/study_material/services/notification_manager.dart';
 import 'package:futapedia/study_material/services/tab_nav.dart';
@@ -55,9 +57,11 @@ class _GoogleDriveManagerScreenState extends State<GoogleDriveManagerScreen> wit
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
     }
-    setState(() {
-      _isInitialized = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
+      });
+    }
   }
 
   @override
@@ -199,24 +203,15 @@ class _EnhancedDriveExplorerTabState extends State<EnhancedDriveExplorerTab> {
   }
 
   void showError(text){
-    if(!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Center(child: Text(text,  style: TextStyle(color: Colors.white),)), backgroundColor: Colors.red, duration: Duration(milliseconds: 900)),
-      );
+    CustomSnackbar.show(context, text, backgroundColor: Colors.red);
   }
 
   void showSuccess(text){
-    if(!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Center(child: Text(text, style: TextStyle(color: Colors.white),)), backgroundColor: Colors.green, duration: Duration(milliseconds: 900)),
-      );
+   CustomSnackbar.show(context, text, backgroundColor: Colors.green);
   }
 
   void showNotify(text){
-     if(!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Center(child: Text(text,  style: TextStyle(color: Colors.white),)), backgroundColor: Colors.grey, duration: Duration(milliseconds: 900)),
-      );
+    CustomSnackbar.show(context, text);
   }
 
   Future<bool> _handlePhoneBackNavigation() async {
@@ -659,24 +654,15 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
   }
 
   void showError(text){
-    if(!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Center(child: Text(text)), backgroundColor: Colors.red, duration: Duration(milliseconds: 900)),
-      );
+    CustomSnackbar.show(context, text, backgroundColor: Colors.red);
   }
 
   void showSuccess(text){
-    if(!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Center(child: Text(text)), backgroundColor: Colors.green, duration: Duration(milliseconds: 900)),
-      );
+    CustomSnackbar.show(context, text, backgroundColor: Colors.green);
   }
 
   void showNotify(text){
-     if(!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Center(child: Text(text)), backgroundColor: Colors.grey, duration: Duration(milliseconds: 900)),
-      );
+    CustomSnackbar.show(context, text);
   }
 
   Future<bool> _handlePhoneBackNavigation() async {
@@ -910,7 +896,7 @@ class _EnhancedDownloadedFilesTabState extends State<EnhancedDownloadedFilesTab>
     return GridView.builder(
       padding: EdgeInsets.all(16.r),
       gridDelegate:  SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 110.w,
+        maxCrossAxisExtent: 120.w,
         childAspectRatio: .8,
         crossAxisSpacing: 12.w,
         mainAxisSpacing: 16.h,

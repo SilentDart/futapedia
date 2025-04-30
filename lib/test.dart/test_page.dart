@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:futapedia/study_material/services/encrypted_pdfviewer.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:futapedia/test.dart/result_page.dart';
 
@@ -56,7 +57,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
       request: AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (RewardedAd ad) {
-          print('Rewarded ad loaded successfully');
+          // //print('Rewarded ad loaded successfully');
           setState(() {
             _rewardedAd = ad;
             _isRewardedAdLoaded = true;
@@ -66,7 +67,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
           // Set full screen content callback
           _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
             onAdDismissedFullScreenContent: (RewardedAd ad) {
-              print('Ad dismissed');
+              // //print('Ad dismissed');
               ad.dispose();
               setState(() {
                 _isRewardedAdLoaded = false;
@@ -89,7 +90,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
               }
             },
             onAdFailedToShowFullScreenContent: (RewardedAd ad, AdError error) {
-              // print('Ad failed to show: ${error.message}');
+              // //print('Ad failed to show: ${error.message}');
               ad.dispose();
               setState(() {
                 _isRewardedAdLoaded = false;
@@ -102,7 +103,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
           );
         },
         onAdFailedToLoad: (LoadAdError error) {
-          print('Rewarded ad failed to load: ${error.message}, error code: ${error.code}');
+          //print('Rewarded ad failed to load: ${error.message}, error code: ${error.code}');
           setState(() {
             _isRewardedAdLoaded = false;
             _isLoadingAd = false;
@@ -119,7 +120,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
     _adRetryAttempt++;
     
     if (_adRetryAttempt <= _maxRetryAttempts) {
-      print('Retrying ad load. Attempt ${_adRetryAttempt} of $_maxRetryAttempts');
+      //print('Retrying ad load. Attempt ${_adRetryAttempt} of $_maxRetryAttempts');
       
       // Exponential backoff: increase delay with each retry
       final waitTime = _retryDelay * _adRetryAttempt;
@@ -130,7 +131,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
         }
       });
     } else {
-      print('Maximum retry attempts reached. Giving up on loading ad.');
+      //print('Maximum retry attempts reached. Giving up on loading ad.');
       _adRetryAttempt = 0; // Reset for next time
       
       if (mounted) {
@@ -262,8 +263,9 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
       
       return topics;
     } catch (e) {
-      print('Error loading topics: $e');
-      throw e; // Re-throw to be caught by FutureBuilder
+      //print('Error loading topics: $e');
+      if (!mounted) return [];
+      rethrow; // Re-throw to be caught by FutureBuilder
     }
   }
   
@@ -297,7 +299,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
         userAnswers[topicId] = topicAnswers;
       });
     } catch (e) {
-      print('Error loading questions for topic $topicId: $e');
+      // //print('Error loading questions for topic $topicId: $e');
     }
   }
   
@@ -377,7 +379,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
       if (_isRewardedAdLoaded && _rewardedAd != null) {
         _rewardedAd!.show(
           onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-            print('User earned reward: ${reward.amount} ${reward.type}');
+            //print('User earned reward: ${reward.amount} ${reward.type}');
             // Mark that user watched the ad and earned the reward
             _userEarnedReward = true;
             // The navigation to result page happens in onAdDismissedFullScreenContent
@@ -499,7 +501,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
       if (_isRewardedAdLoaded && _rewardedAd != null) {
         _rewardedAd!.show(
           onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-            print('User earned reward: ${reward.amount} ${reward.type}');
+            //print('User earned reward: ${reward.amount} ${reward.type}');
             _userEarnedReward = true;
           },
         );
@@ -560,6 +562,7 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
       _submitTest();
     } else if (_isLoadingAd) {
       // Check again after a delay
+      if(!mounted) return;
       Future.delayed(Duration(seconds: 1), () {
         _checkAdLoaded(dialogContext);
       });
@@ -672,21 +675,18 @@ class _TestPageState extends State<TestPage> with SingleTickerProviderStateMixin
         // Topics loaded successfully
         final topics = snapshot.data!;
         
-        return WillPopScope(
-          onWillPop: () async {
-            Navigator.of(context).pop();
-            return false;
-          },
+        return PopScope(
+          canPop: true,
           child: Scaffold(
             appBar: AppBar(
               leading: IconButton(
                 icon: Icon(Icons.chevron_left, size: 35,),
                 onPressed: () => Navigator.pop(context),
               ),
-              title: Text('Practice Test $widget.subjectid'),
+              title: Text('Practice Test ${widget.subjectId}'),
               actions: [IconButton(
                 icon: const Icon(Icons.calculate),
-                onPressed: (){},
+                onPressed:() => ScientificCalculatorPanel(),
                 tooltip: 'Scientific Calculator',
               )],
               bottom: TabBar(
@@ -988,7 +988,7 @@ class QuestionCard extends StatelessWidget {
                   ),
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),

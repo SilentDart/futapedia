@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:futapedia/templates/snackbar.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'dart:math';
@@ -181,13 +184,7 @@ class _CourseTemplateState extends State<CourseTemplate> {
     
     // Show feedback to user
     if(mounted){
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Center(child: const Text("Refreshing course content")),
-          duration: const Duration(milliseconds: 600),
-          backgroundColor: Colors.grey[900],
-        ),
-      );
+      CustomSnackbar.show(context, "Refreshing course content", backgroundColor: Colors.grey);
     }
     
     // Reset refreshing state after a delay
@@ -212,16 +209,7 @@ class _CourseTemplateState extends State<CourseTemplate> {
       
       if (availableAd == null) {
         if(!mounted) return;
-        // If no ad is available, provide better user feedback
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Center(
-              child: Text("Loading ad... Please wait some seconds"),
-            ),
-            duration: const Duration(milliseconds: 300),
-            backgroundColor: selectedColor,
-          ),
-        );
+        CustomSnackbar.show(context, "Loading ads.. Please wait some seconds");
         
         // Ensure we're trying to load more ads
         loadRewardedAdPool();
@@ -268,18 +256,21 @@ class _CourseTemplateState extends State<CourseTemplate> {
     }
     
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-            icon: Icon(Icons.chevron_left, size: 35,),
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(50.h), 
+        child: AppBar(
+          leading: IconButton(
+            icon: Icon(Icons.chevron_left, size: 35.sp,color: Colors.white,),
             onPressed: () => Navigator.pop(context),
-        ),
-        backgroundColor: selectedColor,
-        title: Text(
-          widget.username,
-          style: const TextStyle(
-            fontSize: 18,
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+          ),
+          backgroundColor: selectedColor,
+          title: Text(
+            widget.username,
+            style: TextStyle(
+              fontSize: 25.sp,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ),
@@ -291,55 +282,55 @@ class _CourseTemplateState extends State<CourseTemplate> {
               Container(
                 decoration: BoxDecoration(
                   color: selectedColor,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(40.r),
+                    bottomRight: Radius.circular(40.r),
                   ),
                 ),
-                height: 150,
+                height: 100.h,
                 child: Stack(
                   children: [
                     Positioned(
-                      top: 0,
-                      left: 20,
+                      top: 10.h,
+                      left: 35.w,
                       child: CircleAvatar(
-                        radius: 40,
+                        radius: 35.r,
                         child: ClipOval(
                           child: SizedBox(
-                            height: 80, 
+                            height: 80.h, 
                             child: Lottie.asset(widget.imagePath, fit: BoxFit.contain),
                           ),
                         ),
                       ),
                     ),
                     Positioned(
-                      bottom: 20,
-                      left: 30,
-                      right: 30,
+                      bottom: 8.h,
+                      left: 30.w,
+                      right: 30.w,
                       child: Container(
                         alignment: Alignment.center,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             Column(
-                              children: const [
-                                Text("Rating", style: TextStyle(fontSize: 15, color: Colors.white)),
-                                Text("4.5", style: TextStyle(fontSize: 15, color: Colors.white)),
+                              children: [
+                                Text("Rating", style: TextStyle(fontSize: 17.sp, color: Colors.white, fontWeight: FontWeight.bold)),
+                                Text("", style: TextStyle(fontSize: 16.sp, color: Colors.white)),
                               ],
                             ),
-                            Container(width: 2, height: 50, color: Colors.white),
+                            Container(width: 2.w, height: 40.h, color: Colors.white),
                             Column(
                               children: [
-                                const Text("Your progress", style: TextStyle(fontSize: 15, color: Colors.white, fontWeight: FontWeight.bold)),
-                                Icon(Icons.linear_scale_rounded, color: Colors.white),
-                                Text("${calculateProgress().toStringAsFixed(1)}%", style: const TextStyle(fontSize: 15, color: Colors.white)),
+                                Text("Your progress", style: TextStyle(fontSize: 17.sp, color: Colors.white, fontWeight: FontWeight.bold)),
+                                // Icon(Icons.linear_scale_rounded, color: Colors.white,size: 20.sp),
+                                Text("${calculateProgress().toStringAsFixed(1)}%", style: TextStyle(fontSize: 15.sp, color: Colors.white)),
                               ],
                             ),
-                            Container(width: 2, height: 50, color: Colors.white),
+                            Container(width: 2.w, height: 40.h, color: Colors.white),
                             Column(
-                              children: const [
-                                Text("Review", style: TextStyle(fontSize: 15, color: Colors.white)),
-                                Text("44 reviews", style: TextStyle(fontSize: 15, color: Colors.white)),
+                              children: [
+                                Text("Review", style: TextStyle(fontSize: 17.sp, color: Colors.white, fontWeight: FontWeight.bold)),
+                                Text("", style: TextStyle(fontSize: 15.sp, color: Colors.white)),
                               ],
                             ),
                           ],
@@ -352,37 +343,34 @@ class _CourseTemplateState extends State<CourseTemplate> {
               // Add a pull-to-refresh button here as well for better discoverability
               if (widget.onRefresh != null && widget.courses.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                  padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 25.w),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton.icon(
                         icon: _isRefreshing 
-                          ? SizedBox(
-                              width: 16, 
-                              height: 16, 
-                              child: CircularProgressIndicator(
+                          ? Center(
+                              child: LoadingAnimationWidget.staggeredDotsWave(
                                 color: selectedColor,
-                                strokeWidth: 2,
-                              )
+                                size: 50.sp,
+                              ),
                             )
-                          : Icon(Icons.refresh, color: selectedColor, size: 18),
+                          : Icon(Icons.refresh, color: selectedColor, size: 18.sp),
                         label: Text(
                           "Refresh Content",
-                          style: TextStyle(color: selectedColor, fontSize: 14),
+                          style: TextStyle(color: selectedColor, fontSize: 14.sp),
                         ),
                         onPressed: _isRefreshing ? null : _handleRefresh,
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                          padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 8.w),
                         ),
                       ),
                     ],
                   ),
                 ),
-              const SizedBox(height: 10),
-              const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text("Topics", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.w),
+                child: Text("Topics", style: TextStyle(fontSize: 25.sp, fontWeight: FontWeight.bold)),
               ),
               ListView.builder(
                 shrinkWrap: true,
@@ -433,20 +421,50 @@ class CourseListView extends StatelessWidget {
   Widget build(BuildContext context) {
     bool isCompleted = completedCourses.contains(topicName);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      color: color,
-      child: ListTile(
-        leading: Text(
-          week,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        title: Text(topicName, style: const TextStyle(color: Colors.white)),
-        trailing: isCompleted
-            ? const Icon(Icons.check_circle, color: Colors.white)
-            : const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white),
+    return SizedBox(
+      height: 70.h,
+      child: InkWell(
         onTap: () => showAdBeforeNavigation(context, route, index),
+        child: Card(
+          margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.r)),
+          color: color,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Row(
+                children: [
+                  // Leading section with fixed width
+                  SizedBox(width: 18.w),
+                  Container(
+                    width: constraints.maxWidth * 0.2, // 20% of available width
+                    alignment: Alignment.center,
+                    child: Text(
+                      "$week :",
+                      style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ),
+                  // Title section with flexible width
+                  Expanded(
+                    flex: 5, // Takes most space
+                    child: Text(
+                      topicName, 
+                      style: TextStyle(color: Colors.white, fontSize: 18.sp),
+                      // overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // Trailing icon with fixed width
+                  Container(
+                    width: constraints.maxWidth * 0.15, // 15% of available width
+                    alignment: Alignment.center,
+                    child: isCompleted
+                      ? Icon(Icons.check_circle, size: 18.sp, color: Colors.white)
+                      : Icon(Icons.arrow_forward_ios, size: 18.sp, color: Colors.white),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -464,6 +482,20 @@ class _ImprovedBannerAdWidgetState extends State<ImprovedBannerAdWidget> {
   bool _isAdLoaded = false;
   int _loadAttempts = 0;
   final int _maxFailedLoadAttempts = 3;
+  
+  // List of ad unit IDs to choose from randomly
+  final List<String> _adUnitIds = [
+    'ca-app-pub-2303106437123151/7021826076',
+    'ca-app-pub-2303106437123151/8007425447', 
+    'ca-app-pub-2303106437123151/7523984374', 
+    // Add more ad unit IDs as needed
+  ];
+  
+  // Method to get a random ad unit ID
+  String _getRandomAdUnitId() {
+    final random = Random();
+    return _adUnitIds[random.nextInt(_adUnitIds.length)];
+  }
 
   @override
   void initState() {
@@ -472,8 +504,11 @@ class _ImprovedBannerAdWidgetState extends State<ImprovedBannerAdWidget> {
   }
 
   void _createBannerAd() {
+    // Get a random ad unit ID each time we create a new ad
+    final String selectedAdUnitId = _getRandomAdUnitId();
+    
     _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-2303106437123151/7021826076', // Replace with your banner ad unit ID
+      adUnitId: selectedAdUnitId,
       request: const AdRequest(),
       size: AdSize.banner,
       listener: BannerAdListener(

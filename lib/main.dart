@@ -6,11 +6,13 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:futapedia/firebase_services.dart/auth.dart';
 import 'package:futapedia/firebase_services.dart/user.dart';
 import 'package:futapedia/notification/notification_controller.dart';
 import 'package:futapedia/remote_config.dart/app_update.dart';
+import 'package:futapedia/templates/snackbar.dart';
 import 'package:futapedia/settings/theme.dart';
 import 'package:futapedia/settings/theme_provider.dart';
 import 'package:futapedia/route.dart';
@@ -42,11 +44,12 @@ Future<void> main() async {
       // Initialize Firebase App Check
       await FirebaseAppCheck.instance.activate(
         // For Android: Use Play Integrity provider
-        androidProvider: AndroidProvider.debug,//playIntegrity,
+        androidProvider: AndroidProvider.playIntegrity,
 
         // For iOS: Use App Attest provider for iOS 14+ or DeviceCheck for earlier versions
-        appleProvider: AppleProvider.debug,//appAttest,
+        appleProvider: AppleProvider.appAttest,
       );
+      await dotenv.load(fileName: ".env");
     } catch (e, stackTrace) {
       FirebaseCrashlytics.instance.recordError(e, stackTrace, reason: 'Firebase Init Error');
     }
@@ -65,6 +68,7 @@ Future<void> main() async {
     }
     
     await MobileAds.instance.initialize();
+    CustomSnackbar.init(navigatorKey);
     
     runApp(MyApp());
   }, (error, stackTrace) {
@@ -126,7 +130,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ScreenUtilInit(
     // Design size with minimum width of 715
-      designSize: const Size(700, 1024),
+      designSize: const Size(600, 1024),
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context, child) {

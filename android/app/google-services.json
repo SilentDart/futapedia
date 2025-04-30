@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "678992548913-f2jcn2m26jn19uj9epiqe8vsbok90cem.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.coldcode.futapedia",
+            "certificate_hash": "af5fd3cfaa18472f5ebf1020ab335ff40342b1a6"
+          }
+        },
+        {
           "client_id": "678992548913-t1krltho9rb3sn6sspml47j869n1ojju.apps.googleusercontent.com",
           "client_type": 3
         }

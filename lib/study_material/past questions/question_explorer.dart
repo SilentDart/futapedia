@@ -2,8 +2,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:futapedia/study_material/services/downloader.dart';
+import 'package:futapedia/templates/snackbar.dart';
 import 'package:futapedia/study_material/past%20questions/question_drive.dart';
-import 'package:futapedia/study_material/pdf/pdf_drive.dart';
+// import 'package:futapedia/study_material/pdf/pdf_drive.dart';
 import 'package:futapedia/study_material/services/encrypted_pdfviewer.dart';
 import 'package:futapedia/study_material/services/notification_manager.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
@@ -42,9 +44,11 @@ class _PastQuestionGoogleDriveManagerState extends State<PastQuestionGoogleDrive
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
     }
-    setState(() {
-      _isInitialized = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
+      });
+    }
   }
 
   @override
@@ -148,8 +152,8 @@ class _PastQuestionGoogleDriveManagerState extends State<PastQuestionGoogleDrive
   @override
   void dispose() {
     _tabController.dispose();
-    GoogleDriveDownloader.dispose();
-    NotificationDownloadManager().dispose();
+    GoogleDriveDownloader.detachFromUI(this);
+    NotificationDownloadManager.detachFromUI(this);
     super.dispose();
   }
 }
@@ -179,24 +183,15 @@ class _PastQuestionExplorerState extends State<PastQuestionExplorer> {
   }
 
   void showError(text){
-    if(!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Center(child: Text(text,  style: TextStyle(color: Colors.white),)), backgroundColor: Colors.red, duration: Duration(milliseconds: 900)),
-      );
+    CustomSnackbar.show(context, text, backgroundColor: Colors.red);
   }
 
   void showSuccess(text){
-    if(!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Center(child: Text(text, style: TextStyle(color: Colors.white),)), backgroundColor: Colors.green, duration: Duration(milliseconds: 900)),
-      );
+    CustomSnackbar.show(context, text, backgroundColor: Colors.green);
   }
 
   void showNotify(text){
-     if(!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Center(child: Text(text)), duration: Duration(milliseconds: 900)),
-      );
+    CustomSnackbar.show(context, text);
   }
 
   Future<bool> _handlePhoneBackNavigation() async {
@@ -627,24 +622,15 @@ class _PastQuestionDownloadedFilesTabState extends State<PastQuestionDownloadedF
   }
 
   void showError(text){
-    if(!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Center(child: Text(text)), backgroundColor: Colors.red, duration: Duration(milliseconds: 900)),
-      );
+    CustomSnackbar.show(context, text, backgroundColor: Colors.red);
   }
 
   void showSuccess(text){
-    if(!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Center(child: Text(text)), backgroundColor: Colors.green, duration: Duration(milliseconds: 900)),
-      );
+    CustomSnackbar.show(context, text, backgroundColor: Colors.green);
   }
 
   void showNotify(text){
-     if(!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Center(child: Text(text)), backgroundColor: Colors.grey, duration: Duration(milliseconds: 900)),
-      );
+    CustomSnackbar.show(context, text);
   }
 
   Future<bool> _handlePhoneBackNavigation() async {
@@ -885,12 +871,12 @@ class _PastQuestionDownloadedFilesTabState extends State<PastQuestionDownloadedF
                           ? Icons.folder
                           : isPdf
                             ? Icons.picture_as_pdf
-                            : Icons.insert_drive_file,
+                            : Icons.image,
                         color: isDirectory
                           ? Colors.amber
                           : isPdf
                             ? Colors.red
-                            : Colors.grey,
+                            : Colors.blue,
                         size: 35.sp,
                       ),
                     ),

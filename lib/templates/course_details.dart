@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import 'package:futapedia/firebase_services.dart/get_semester.dart';
 import 'package:futapedia/templates/course_template.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class CourseDetailsPage extends StatefulWidget {
   final String courseName;
@@ -18,7 +19,7 @@ class CourseDetailsPage extends StatefulWidget {
 class _CourseDetailsPageState extends State<CourseDetailsPage> {
   bool _isLoading = true;
   List<Map<String, String>> _courseTopics = [];
-  String _imagePath = 'assets/animations/course_default.json'; // Default animation
+  String _imagePath = 'jsons/animations/course_default.json'; // Default animation
   
   // Create secure storage instance
   final _secureStorage = const FlutterSecureStorage();
@@ -202,7 +203,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
       }
       
     } catch (e) {
-      print("Error fetching course data: $e");
+      // print("Error fetching course data: $e");
       // Check if widget is still mounted before calling setState
       if (mounted) {
         setState(() {
@@ -232,26 +233,44 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
     if (_isLoading) {
       return Scaffold(
         body: Center(
-          child: CircularProgressIndicator(),
+          child: LoadingAnimationWidget.staggeredDotsWave(color: Colors.brown,size: 50.sp,),
         ),
       );
     }
     
     if (_courseTopics.isEmpty) {
       return Scaffold(
-        appBar: AppBar(
-          title: Text(widget.courseName),
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(50.h), 
+          child: AppBar(
+            leading: IconButton(
+              icon: Icon(Icons.chevron_left, size: 35.sp,color: Colors.white,),
+              onPressed: () => Navigator.pop(context),
+            ),
+            backgroundColor: Colors.brown[200],
+            title: Text(
+              widget.courseName,
+              style: TextStyle(
+                fontSize: 25.sp,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text("No topics available for this course"),
+              Text("No topics available for this course", style: TextStyle(fontSize: 17.sp)),
               SizedBox(height: 20.h),
-              ElevatedButton.icon(
-                icon: Icon(Icons.refresh),
-                label: Text("Refresh"),
-                onPressed: _refreshData,
+              SizedBox(
+                height: 40.h,
+                child: ElevatedButton.icon(
+                  icon: Icon(Icons.refresh, size:25.sp),
+                  label: Text("Refresh", style: TextStyle(fontSize:15.sp)),
+                  onPressed: _refreshData,
+                ),
               ),
             ],
           ),

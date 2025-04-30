@@ -533,7 +533,7 @@ class CourseDataWriter {
       _clearCourseCache(courseName);
       
     } catch (e) {
-      print("Error updating course data: $e");
+      // print("Error updating course data: $e");
       rethrow;
     }
   }
@@ -546,7 +546,7 @@ class CourseDataWriter {
     
     // If the cache is not directly accessible, consider implementing a cache
     // clearing mechanism in CourseDetailsPage as a static method
-    print("Cache for course $courseName should be cleared");
+    // print("Cache for course $courseName should be cleared");
   }
 }
 
@@ -557,99 +557,128 @@ Future<void> updateCourseData({
   required String courseName,
 }) async{
   // Create topic data in the format expected by your _fetchCourseData method
- try{ List<Map<String, dynamic>> topicData = [
+ try{ List<Map<String, dynamic>> topicData = 
+  [
   {
-    "Lesson 1": "What is Abstract Algebra? The Tangle Dance",
-    "Link 1": "https://www.youtube.com/watch?v=vFNbtB6Y4v4&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=1&pp=iAQB",
+    "Lesson 1": "Proving Sets || IQ Initiative",
+    "Link 1": "http://www.youtube.com/watch?v=dYEQvKD_CpY",
     "imagePath": "jsons/mathematics.json"
   },
   {
-    "Lesson 2": "Definition of a Group",
-    "Link 2": "https://www.youtube.com/watch?v=D_J8IGL7xWE&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=6&pp=iAQB "
+    "Lesson 2": "How to prove Cartesian Product of Sets || IQ Initiative",
+    "Link 2": "http://www.youtube.com/watch?v=t0GleyxCdFU"
   },
   {
-    "Lesson 3": "Basic Properties of Groups",
-    "Link 3": "https://www.youtube.com/watch?v=-3gUH-wtf_A&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=7&pp=iAQB "
+    "Lesson 3": "Product of Sets - Proof | Set Theory || IQ Initiative",
+    "Link 3": "http://www.youtube.com/watch?v=8diLbGIaxSU"
   },
   {
-    "Lesson 4": "Finite Groups and Order(s)",
-    "Link 4": "https://www.youtube.com/watch?v=VUAQbBPULdY&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=8&pp=iAQB "
+    "Lesson 4": "RELATIONS - DISCRETE MATHEMATICS || TrevTutor",
+    "Link 4": "http://www.youtube.com/watch?v=FI6j5QZNVx0"
   },
   {
-    "Lesson 5": "Cyclic Groups and Subgroups",
-    "Link 5": "https://www.youtube.com/watch?v=aLyVip-6Brw&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=9&pp=iAQB "
+    "Lesson 5": "Introduction to Relations || Neso Academy",
+    "Link 5": "http://www.youtube.com/watch?v=4Caxyh0zt_o"
   },
   {
-    "Lesson 6": "Cyclic Groups Introduction",
-    "Link 6": "https://www.youtube.com/watch?v=c9Y0QcHlObk&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=15&pp=iAQB "
+    "Lesson 6": "Types of Relations (Part 1) || Neso Academy",
+    "Link 6": "http://www.youtube.com/watch?v=GvNGf9Gki7o"
   },
   {
-    "Lesson 7": "Examples of Cyclic Groups",
-    "Link 7": "https://www.youtube.com/watch?v=9ZhEMe_Kh1Y&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=16&pp=iAQB "
+    "Lesson 7": "Reflexive, Symmetric, and Transitive Relations on a Set || Dr. Trefor Bazett",
+    "Link 7": "http://www.youtube.com/watch?v=q0xN_N7l_Kw"
   },
   {
-    "Lesson 8": "Properties of Cyclic Groups",
-    "Link 8": "https://www.youtube.com/watch?v=yxqxn1v3sBY&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=17&pp=iAQB "
+    "Lesson 8": "Relations and Functions | Algebra || The Organic Chemistry Tutor",
+    "Link 8": "http://www.youtube.com/watch?v=wbBY2tTqXDA"
   },
   {
-    "Lesson 9": "Subgroups of Cyclic Groups, Part I",
-    "Link 9": "https://www.youtube.com/watch?v=l7FxYMIdKPo&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=18&pp=iAQB "
+    "Lesson 9": "Learn Functions – Understand In 7 Minutes || TabletClass Math",
+    "Link 9": "http://www.youtube.com/watch?v=lGfsp2CWjok"
   },
   {
-    "Lesson 10": "Subgroup Tests",
-    "Link 10": "https://www.youtube.com/watch?v=9kQw4tY-z1I&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=11&pp=iAQB "
+    "Lesson 10": "INJECTIVE, SURJECTIVE, and BIJECTIVE FUNCTIONS - DISCRETE MATHEMATICS || TrevTutor",
+    "Link 10": "http://www.youtube.com/watch?v=bZred_Ksz2k"
   },
   {
-    "Lesson 11": "Important Facts about Order",
-    "Link 11": "https://www.youtube.com/watch?v=ObXlFhEM2Sg&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=10&pp=iAQB "
+    "Lesson 11": "[Discrete Mathematics] Inverse Function Examples || TrevTutor",
+    "Link 11": "http://www.youtube.com/watch?v=1cvQhfZGF7Q"
   },
   {
-    "Lesson 12": "Abelian Groups, Center of a Group",
-    "Link 12": "https://www.youtube.com/watch?v=Dl7K_a8ViNY&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=12&pp=iAQB "
+    "Lesson 12": "[Discrete Mathematics] Inverses Examples 2 || TrevTutor",
+    "Link 12": "http://www.youtube.com/watch?v=kEUVTLpdG0k"
   },
   {
-    "Lesson 13": "Permutation Groups: Intro and Goals",
-    "Link 13": "https://www.youtube.com/watch?v=6z87Y11c3OM&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=21&pp=iAQB "
+    "Lesson 13": "Binary Operations || SolMathSolutions",
+    "Link 13": "http://www.youtube.com/watch?v=vuiQ0fJRD8I"
   },
   {
-    "Lesson 14": "Cycle Notation for Permutations",
-    "Link 14": "https://www.youtube.com/watch?v=_xVPzvK_264&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=24&pp=iAQB "
+    "Lesson 14": "SHS 1 Core Mathematics | Binary Operations Real || Adesua Online",
+    "Link 14": "http://www.youtube.com/watch?v=CzI6VVk-0c8"
   },
   {
-    "Lesson 15": "Simplifying a Product of Permutations",
-    "Link 15": "https://www.youtube.com/watch?v=6sOAYTQnKLM&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=25&pp=iAQB "
+    "Lesson 15": "Binary Operations Complete Review || Transcended Institute",
+    "Link 15": "http://www.youtube.com/watch?v=1_UWikW7gTs"
   },
   {
-    "Lesson 16": "Find the Inverse of a Permutation using Cycles",
-    "Link 16": "https://www.youtube.com/watch?v=pPCQZ_MXuzk&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=26&pp=iAQB0gcJCTgDd0p55Nqk "
+    "Lesson 16": "Group Definition (expanded) - Abstract Algebra || Socratica",
+    "Link 16": "http://www.youtube.com/watch?v=g7L_r6zw4-c"
   },
   {
-    "Lesson 17": "Definition of Isomorphism",
-    "Link 17": "https://www.youtube.com/watch?v=D56o2COL7zo&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=31&pp=iAQB "
+    "Lesson 17": "Abstract Algebra: Group or Not Group? (Integer edition) || Socratica",
+    "Link 17": "http://www.youtube.com/watch?v=qvx9TnK85bw"
   },
   {
-    "Lesson 18": "Examples of Isomorphisms",
-    "Link 18": "https://www.youtube.com/watch?v=EZJz-0s55g4&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=32&pp=iAQB "
+    "Lesson 18": "Group and Abelian Group || Neso Academy",
+    "Link 18": "http://www.youtube.com/watch?v=8TjYHK804mU"
   },
   {
-    "Lesson 19": "Element Properties of Isomorphisms",
-    "Link 19": "https://www.youtube.com/watch?v=nlTzLcvrJ9c&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=33&pp=iAQB "
+    "Lesson 19": "Group Multiplication Tables | Cayley Tables  (Abstract Algebra) || Socratica",
+    "Link 19": "http://www.youtube.com/watch?v=BwHspSCXFNM"
   },
   {
-    "Lesson 20": "Group Homomorphism: Definition and Example",
-    "Link 20": "https://www.youtube.com/watch?v=OgXDJb-iMRI&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=65&pp=iAQB "
+    "Lesson 20": "Abstract Algebra: The definition of a Subgroup || Socratica",
+    "Link 20": "http://www.youtube.com/watch?v=TJAQNlGvfjE"
   },
   {
-    "Lesson 21": "Properties of Homomorphisms, Image, Kernel",
-    "Link 21": "https://www.youtube.com/watch?v=KNQScW0l_rE&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=66&pp=iAQB "
+    "Lesson 21": "Cyclic Groups  (Abstract Algebra) || Socratica",
+    "Link 21": "http://www.youtube.com/watch?v=8A84sA1YuPw"
   },
   {
-    "Lesson 22": "Homomorphism Properties: Orders and Subgroups",
-    "Link 22": "https://www.youtube.com/watch?v=KWCE_wN6fz8&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=67&pp=iAQB "
+    "Lesson 22": "Cyclic Group || Neso Academy",
+    "Link 22": "http://www.youtube.com/watch?v=OGCRccWi4OE"
   },
   {
-    "Lesson 23": "Kernels are Normal Subgroups are Kernels",
-    "Link 23": "https://www.youtube.com/watch?v=kbImnj0sqMo&list=PLL0ATV5XYF8AQZuEYPnVwpiFy0jEipqN-&index=68&pp=iAQB "
+    "Lesson 23": "The Order of an Element  (Abstract Algebra) || Socratica",
+    "Link 23": "http://www.youtube.com/watch?v=OWTKYLAEYvY"
+  },
+  {
+    "Lesson 24": "Symmetric Groups (Abstract Algebra) || Socratica",
+    "Link 24": "http://www.youtube.com/watch?v=3aNeCWRjh8I"
+  },
+  {
+    "Lesson 25": "Dihedral Group  (Abstract Algebra) || Socratica",
+    "Link 25": "http://www.youtube.com/watch?v=rPh7EQPSaO4"
+  },
+  {
+    "Lesson 26": "Symmetry Groups of Triangles  (Abstract Algebra) || Socratica",
+    "Link 26": "http://www.youtube.com/watch?v=DeCcqioogLY"
+  },
+  {
+    "Lesson 27": "Homomorphisms  (Abstract Algebra) || Socratica",
+    "Link 27": "http://www.youtube.com/watch?v=cYzp5IWqCsg"
+  },
+  {
+    "Lesson 28": "Group Homomorphisms - Abstract Algebra || Socratica",
+    "Link 28": "http://www.youtube.com/watch?v=XPF5fe1WdKY"
+  },
+  {
+    "Lesson 29": "Isomorphisms  (Abstract Algebra) || Socratica",
+    "Link 29": "http://www.youtube.com/watch?v=BAmWgVjSosY"
+  },
+  {
+    "Lesson 30": "The Kernel of a Group Homomorphism – Abstract Algebra || Socratica",
+    "Link 30": "http://www.youtube.com/watch?v=TngePpJ_x-I"
   }
 ];
   
@@ -660,7 +689,7 @@ Future<void> updateCourseData({
     // context: context,
     topicData: topicData,
   );}catch (e) {
-    print("Error in updateCourseData: $e");
+    // print("Error in updateCourseData: $e");
     rethrow; // Rethrow to be caught by the caller
   }
 }

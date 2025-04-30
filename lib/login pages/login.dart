@@ -114,66 +114,72 @@ class _StudentLoginPageState extends State<StudentLoginPage> {
                   SizedBox(height: 10.h),
                   Text(
                     'Welcome to FUTApedia',
-                    style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 25.sp, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 40.h),
                   
                   
-                  ElevatedButton(
-                    onPressed:() {
-                      setState(() {
-                        login = true;
-                      });
-                      handleAnonymousLogin(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      side: BorderSide(color: Colors.blue),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20.r),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        //Image.asset('images/google_logo.jpg', height: 20),
-                        Icon(Icons.person_4_rounded, size: 23.sp, color: Colors.black),
-                        SizedBox(width: 10),
-                        Text(
-                          'Sign in Anonymous',
-                          style: TextStyle(color: Colors.black),
+                  SizedBox(
+                    height: 45.h,
+                    child: ElevatedButton(
+                      onPressed:() {
+                        setState(() {
+                          login = true;
+                        });
+                        handleAnonymousLogin(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        side: BorderSide(color: Colors.blue),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20.r),
                         ),
-                      ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          //Image.asset('images/google_logo.jpg', height: 20),
+                          Icon(Icons.person_4_rounded, size: 23.sp, color: Colors.black),
+                          SizedBox(width: 15.w),
+                          Text(
+                            'Sign in Anonymous',
+                            style: TextStyle(color: Colors.black, fontSize: 18.sp),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
 
-                  SizedBox(height: 10.h),
+                  SizedBox(height: 15.h),
 
 
-                  ElevatedButton(
-                    onPressed:() {
-                      setState(() {
-                        login = true;
-                      });
-                      _handleGoogleSignIn(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      side: BorderSide(color: Colors.blue),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20.r),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset('images/google_logo.jpg', height: 20.h),
-                        SizedBox(width: 10.w),
-                        Text(
-                          'Sign in with Google',
-                          style: TextStyle(color: Colors.black),
+                  SizedBox(
+                    height: 45.h,
+                    child: ElevatedButton(
+                      onPressed:() {
+                        setState(() {
+                          login = true;
+                        });
+                        _handleGoogleSignIn(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        side: BorderSide(color: Colors.blue),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20.r),
                         ),
-                      ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset('images/google_logo.jpg', height: 20.h),
+                          SizedBox(width: 15.w),
+                          Text(
+                            'Sign in with Google',
+                            style: TextStyle(color: Colors.black, fontSize: 18.sp),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
 

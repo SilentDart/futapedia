@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:futapedia/study_material/pdf/pdf_explorer.dart';
-// import 'package:futapedia/study_material/services/directoryInfo.dart';
-
 
 class NavigationProvider extends ChangeNotifier {
   int activeTab = 0;
@@ -12,14 +10,6 @@ class NavigationProvider extends ChangeNotifier {
     activeTab = tab;
     currentPath = path;
     breadcrumbs = List.from(crumbs);
-    notifyListeners();
-  }
-  
-  // Helper method to restore state
-  void resetState() {
-    activeTab = 0;
-    currentPath = '';
-    breadcrumbs = [];
     notifyListeners();
   }
 }

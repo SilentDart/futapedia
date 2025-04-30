@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:futapedia/templates/snackbar.dart';
 import 'package:futapedia/study_material/services/encrypt_utils.dart';
 import 'package:math_expressions/math_expressions.dart';
 import 'package:path_provider/path_provider.dart';
@@ -263,105 +265,110 @@ class _EncryptedFileViewerState extends State<EncryptedFileViewer> {
     
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.chevron_left, size: 35,),
-          onPressed:  () => Routemaster.of(context).pop(),
-        ),
-        title: Text(widget.fileName),
-        actions: [
-          // Add calculator icon
-          IconButton(
-            icon: const Icon(Icons.calculate),
-            onPressed: _toggleCalculator,
-            tooltip: 'Scientific Calculator',
+    return  PreferredSize(
+      preferredSize: Size.fromHeight(30.h),
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: Icon(Icons.chevron_left, size: 30.sp,),
+            onPressed:  () => Routemaster.of(context).pop(),
           ),
-          // IconButton(
-          //   icon: const Icon(Icons.refresh),
-          //   onPressed: _prepareFile,
-          //   tooltip: 'Reload',
-          // ),
-          if (_isPdfFile())
+          title: Text(widget.fileName.substring(0, widget.fileName.lastIndexOf('.')), style: TextStyle(fontSize: 20.sp)),
+          actions: [
+            // Add calculator icon
             IconButton(
-              icon: const Icon(Icons.bookmark),
-              onPressed: () {
-                // Manually save current page
-                _saveCurrentPage();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Bookmark saved at page $_currentPage'),
-                    duration: const Duration(seconds: 1),
-                  ),
-                );
+              icon: Icon(Icons.calculate, size: 25.sp),
+              onPressed: _toggleCalculator,
+              tooltip: 'Scientific Calculator',
+            ),
+            // IconButton(
+            //   icon: const Icon(Icons.refresh, size: 30.sp),
+            //   onPressed: _prepareFile,
+            //   tooltip: 'Reload',
+            // ),
+            if (_isPdfFile())
+              IconButton(
+                icon: Icon(Icons.bookmark,size: 25.sp),
+                onPressed: () {
+                  // Manually save current page
+                  _saveCurrentPage();
+                  // ScaffoldMessenger.of(context).showSnackBar(
+                  //   SnackBar(
+                  //     content: Text('Bookmark saved at page $_currentPage'),
+                  //     duration: const Duration(seconds: 1),
+                  //   ),
+                  // );
+
+                  CustomSnackbar.show(context, "Bookmark saved at page $_currentPage", duration: const Duration(seconds: 1));
+                },
+                tooltip: 'Save current position',
+              ),
+            // IconButton(
+            //   icon: const Icon(Icons.share),
+            //   onPressed: () {
+            //     // Implement file sharing functionality
+            //     ScaffoldMessenger.of(context).showSnackBar(
+            //       const SnackBar(content: Text('Feature will be added soon')),
+            //     );
+            //   },
+            // ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            // Main file viewer - gestures will pass through to this when calculator is shown
+            GestureDetector(
+              onTap: () {
+                // Hide calculator when tapping outside of it
+                if (_showCalculator) {
+                  setState(() {
+                    _showCalculator = false;
+                  });
+                }
               },
-              tooltip: 'Save current position',
-            ),
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: () {
-              // Implement file sharing functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Feature will be added soon')),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          // Main file viewer - gestures will pass through to this when calculator is shown
-          GestureDetector(
-            onTap: () {
-              // Hide calculator when tapping outside of it
-              if (_showCalculator) {
-                setState(() {
-                  _showCalculator = false;
-                });
-              }
-            },
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _isError
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Error',
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _errorMessage,
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: _prepareFile,
-                                child: const Text('Try Again'),
-                              ),
-                            ],
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _isError
+                      ? Center(
+                          child: Padding(
+                            padding:  EdgeInsets.all(20.r),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Error',
+                                  style: Theme.of(context).textTheme.titleLarge,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _errorMessage,
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: _prepareFile,
+                                  child: const Text('Try Again'),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      )
-                    : _buildFileViewer(),
-          ),
-          
-          // Calculator overlay - shown from bottom when toggled
-          if (_showCalculator)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: MediaQuery.of(context).size.height * 2/3, // Takes 2/3 of screen height
-              child: const ScientificCalculatorPanel(),
+                        )
+                      : _buildFileViewer(),
             ),
-        ],
+            
+            // Calculator overlay - shown from bottom when toggled
+            if (_showCalculator)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: MediaQuery.of(context).size.height * 2/3, // Takes 2/3 of screen height
+                child: const ScientificCalculatorPanel(),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -875,7 +882,7 @@ class _SecureImageGalleryScreenState extends State<SecureImageGalleryScreen> {
       try {
         return await PDFEncryptionUtils.instance.decryptFile(image.path);
       } catch (e) {
-        print('Decryption error: $e');
+        // print('Decryption error: $e');
         // Fallback to original file if decryption fails
         return await image.readAsBytes();
       }

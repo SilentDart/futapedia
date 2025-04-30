@@ -301,41 +301,132 @@ class PDFEncryptionUtils {
       }
     });
   }
+  // Add this method to PDFEncryptionUtils class
+Future<Uint8List> encryptBytes(Uint8List bytes) async {
+  try {
+    if (!_isInitialized) await initialize();
+    
+    // Get encryption key and IV
+    final keyString = await _getEncryptionKey();
+    final ivString = await _getEncryptionIV();
+    
+    // Create encrypter
+    final key = encrypt.Key.fromBase64(keyString);
+    final iv = encrypt.IV.fromBase64(ivString);
+    final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.cbc));
+    
+    // Encrypt the bytes
+    final encrypted = encrypter.encryptBytes(bytes, iv: iv);
+    
+    return encrypted.bytes;
+  } catch (e) {
+    debugPrint('Bytes encryption error: $e');
+    throw Exception('Failed to encrypt bytes: $e');
+  }
+}
+
+// Add this method to PDFEncryptionUtils class to decrypt bytes directly
+Future<Uint8List> decryptBytes(Uint8List encryptedBytes) async {
+  try {
+    if (!_isInitialized) await initialize();
+    
+    // Get encryption key and IV
+    final keyString = await _getEncryptionKey();
+    final ivString = await _getEncryptionIV();
+    
+    // Create encrypter
+    final key = encrypt.Key.fromBase64(keyString);
+    final iv = encrypt.IV.fromBase64(ivString);
+    final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.cbc));
+    
+    // Decrypt the bytes
+    final decrypted = encrypter.decryptBytes(
+      encrypt.Encrypted(encryptedBytes),
+      iv: iv
+    );
+    
+    return Uint8List.fromList(decrypted);
+  } catch (e) {
+    debugPrint('Bytes decryption error: $e');
+    throw Exception('Failed to decrypt bytes: $e');
+  }
+}
 }
 
 // This class needs to be updated too
 class DownloadedFolderEncryptionService {
+  // Add a semaphore to limit concurrent encryption
+  static final _encryptionSemaphore = Lock();
+  static const _maxConcurrentEncryptions = 3;
   
   // Process a directory to ensure all files are encrypted
   static Future<void> processDirectory(Directory directory) async {
     try {
       final entities = directory.listSync(recursive: true);
+      final filesToEncrypt = <File>[];
       
+      // First, identify all files that need encryption
       for (final entity in entities) {
         if (entity is File) {
           final filePath = entity.path;
           
           // Skip already encrypted files
-          if (isFileEncrypted(filePath)) continue;
+          if (PDFEncryptionUtils.instance.isFileEncrypted(filePath)) continue;
           
           // Check if file should be encrypted
           if (PDFEncryptionUtils.shouldEncrypt(filePath)) {
-            final encryptedPath = '$filePath.enc';
-            
-            // Encrypt the file - fixed static method call
-            await PDFEncryptionUtils.instance.encryptFile(filePath, encryptedPath);
-            
-            // Replace original with encrypted
-            final encryptedFile = File(encryptedPath);
-            if (await encryptedFile.exists()) {
-              await File(filePath).delete();
-              await encryptedFile.rename(filePath);
-            }
+            filesToEncrypt.add(entity);
           }
         }
       }
+      
+      // Then process them with limited concurrency
+      final futures = <Future<void>>[];
+      int processed = 0;
+      
+      for (final file in filesToEncrypt) {
+        final future = _encryptionSemaphore.synchronized(() async {
+          await _encryptFile(file);
+          processed++;
+          debugPrint('Encrypted $processed/${filesToEncrypt.length} files');
+        });
+        
+        futures.add(future);
+        
+        // Process in batches to limit concurrency
+        if (futures.length >= _maxConcurrentEncryptions) {
+          await Future.wait(futures);
+          futures.clear();
+        }
+      }
+      
+      // Wait for remaining encryption tasks
+      if (futures.isNotEmpty) {
+        await Future.wait(futures);
+      }
+      
     } catch (e) {
       debugPrint('Error processing directory for encryption: $e');
+    }
+  }
+  
+  // Helper method to encrypt a single file
+  static Future<void> _encryptFile(File file) async {
+    try {
+      final filePath = file.path;
+      final encryptedPath = '$filePath.enc';
+      
+      // Encrypt the file
+      await PDFEncryptionUtils.instance.encryptFile(filePath, encryptedPath);
+      
+      // Replace original with encrypted
+      final encryptedFile = File(encryptedPath);
+      if (await encryptedFile.exists()) {
+        await File(filePath).delete();
+        await encryptedFile.rename(filePath);
+      }
+    } catch (e) {
+      debugPrint('Error encrypting file: ${file.path} - $e');
     }
   }
   

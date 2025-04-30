@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:futapedia/ads/native_ad.dart';
 import 'package:futapedia/settings/theme_provider.dart';
 import 'package:futapedia/test.dart/saved_test_result.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:routemaster/routemaster.dart';
 
@@ -160,7 +161,7 @@ class _TestPageState extends State<TestPage> {
                 future: RecentTestsManager.getRecentTests(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(child: CircularProgressIndicator());
+                    return Center(child: LoadingAnimationWidget.staggeredDotsWave(color: Colors.brown, size: 50.sp,));
                   }
                   
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -289,7 +290,7 @@ class _TestPageState extends State<TestPage> {
               color: iconColor.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.assignment_outlined, color: iconColor),
+            child: Icon(Icons.assignment_outlined, color: iconColor, size: 30.sp),
           ),
           SizedBox(width: 12.r),
           Expanded(
@@ -317,6 +318,7 @@ class _TestPageState extends State<TestPage> {
               score,
               style: TextStyle(
                 color: iconColor,
+                fontSize: 16.sp,
                 fontWeight: FontWeight.bold,
               ),
             ),

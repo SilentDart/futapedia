@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:futapedia/study_material/pdf/pdf_drive.dart';
 import 'package:futapedia/study_material/services/encrypt_utils.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
@@ -8,7 +9,7 @@ import 'package:google_sign_in/google_sign_in.dart';
  
 class GoogleDriveServicePQ {
   static final _scopes = [drive.DriveApi.driveScope];
-  static const _parentFolderId = '1Kp3c8qAlp389yBMs2hDz_mKgrFSe-efO'; //1hBErqz9_15oEPE2VBJ4rLC2AfS7VmPBv
+  static final _parentFolderId = dotenv.env['PARENT_FOLDER_ID_PQ']??'';
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: _scopes);
   drive.DriveApi? _driveApi;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 // Enum to select which ad unit to use
@@ -68,7 +69,7 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
           },
           onAdFailedToLoad: (ad, error) {
             ad.dispose();
-            print('Native ad failed to load: ${error.message}');
+            // print('Native ad failed to load: ${error.message}');
             
             if (_currentRetry < _maxRetries) {
               _currentRetry++;
@@ -84,8 +85,8 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
       
       _nativeAd!.load();
     } catch (e) {
-      print('Error creating or loading ad: $e');
-      
+      // print('Error creating or loading ad: $e');
+      if(!mounted) return;
       if (_currentRetry < _maxRetries) {
         _currentRetry++;
         Future.delayed(Duration(seconds: _currentRetry * 3), () {
@@ -107,7 +108,7 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
   Widget build(BuildContext context) {
     return _isAdLoaded
       ? Container(
-          margin: EdgeInsets.symmetric(vertical: 25),
+          margin: EdgeInsets.symmetric(vertical: 25.h),
           padding: EdgeInsets.all(15),
           decoration: BoxDecoration(
             color: Colors.grey[100],
@@ -116,12 +117,12 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
           ),
           child: Row(
             children: [
-              Icon(Icons.campaign, color: Colors.grey[600], size: 30),
-              SizedBox(width: 15),
+              Icon(Icons.campaign, color: Colors.grey[600], size: 25.sp),
+              SizedBox(width: 15.w),
               // Wrap the AdWidget in an Expanded widget to constrain its width
               Expanded(
-                child: Container(
-                  height: 40, // Provide a fixed height
+                child: SizedBox(
+                  height: 40.h, // Provide a fixed height
                   child: AdWidget(ad: _nativeAd!),
                 ),
               ),

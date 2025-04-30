@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:futapedia/notification/notification_editor_page.dart';
 import 'package:futapedia/notification/scheduled_notification.dart';
+import 'package:futapedia/templates/snackbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SchedulerPage extends StatefulWidget {
@@ -158,8 +160,8 @@ class _SchedulerPageState extends State<SchedulerPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Deletion'),
-        content: const Text('Are you sure you want to delete this scheduled reminder?'),
+        title: Text('Confirm Deletion', style: TextStyle(fontSize: 16.sp),),
+        content: Text('Are you sure you want to delete this scheduled reminder?',),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -176,10 +178,9 @@ class _SchedulerPageState extends State<SchedulerPage> {
               await _saveSchedules();
               await _updateNotifications();
               if(mounted){
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Schedule deleted')),
-                );
+               CustomSnackbar.show(context, "Schedule Deleted", backgroundColor: Colors.red);
               }
+              
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
@@ -201,12 +202,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
     
     // Show a confirmation toast
     if(!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Reminders updated successfully'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    CustomSnackbar.show(context, "Reminder updated successfully", backgroundColor: Colors.green);
   }
 
   Future<void> _scheduleNotification(ScheduledNotification schedule) async {
@@ -325,7 +321,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Study Reminders',style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Study Reminders',style: TextStyle(fontWeight: FontWeight.bold)),
         leading: IconButton(
             icon: Icon(Icons.chevron_left, size: 35,),
             onPressed: () => Navigator.pop(context),

@@ -77,7 +77,7 @@ class AppUpdateChecker {
   // Check if update is required
   Future<UpdateStatus> checkForUpdate() async {
     try {
-      debugPrint('🔄 Starting update check process...');
+      // debugPrint('🔄 Starting update check process...');
       
       // // Get current app version
       // debugPrint('📱 Retrieving current app version...');
@@ -90,10 +90,10 @@ class AppUpdateChecker {
       final updatedVersion = _remoteConfig.getString(KEY_UPDATED_VERSION);
       final updatedMessage = _remoteConfig.getString(KEY_UPDATED_MESSAGE);
       
-      debugPrint('📋 Remote Config values:');
-      debugPrint('   - Updated version: $updatedVersion');
-      debugPrint('   - Update message: $updatedMessage');
-      debugPrint('   - Grace period: $DEFAULT_GRACE_PERIOD days (fixed)');
+      // debugPrint('📋 Remote Config values:');
+      // debugPrint('   - Updated version: $updatedVersion');
+      // debugPrint('   - Update message: $updatedMessage');
+      // debugPrint('   - Grace period: $DEFAULT_GRACE_PERIOD days (fixed)');
 
       // Compare versions
       final bool isNewer = _isVersionNewer(updatedVersion, currentVersion);

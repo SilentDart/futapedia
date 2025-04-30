@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
@@ -116,8 +117,8 @@ class _ThemeSelectorState extends State<ThemeSelector> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Discard'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text('Discard'),
           ),
         ],
       ),
@@ -131,43 +132,52 @@ class _ThemeSelectorState extends State<ThemeSelector> {
     // Get the ThemeProvider but don't listen to it (we'll update it manually)
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) {
+          return;
+        }
+        await _onWillPop();
+      },
       child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: Icon(Icons.chevron_left, size: 35,),
-            onPressed: () => Navigator.pop(context),
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(40.h),
+          child: AppBar(
+            leading: IconButton(
+              icon: Icon(Icons.chevron_left, size: 30.sp,),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: Text('Pick Your Theme Color',style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.sp)),
+            backgroundColor: selectedColor[500],
+            
           ),
-          title: Text('Pick Your Theme Color'),
-          backgroundColor: selectedColor[500],
-          
         ),
         body: Container(
-          padding: EdgeInsets.all(16),
+          padding: EdgeInsets.all(20.r),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.all(20.r),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(17.r),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.palette, size: 32, color: selectedColor),
-                    SizedBox(width: 12),
+                    Icon(Icons.palette, size: 32.sp, color: selectedColor),
+                    SizedBox(width: 12.w),
                     Expanded(
                       child: Text(
                         'Choose your favorite color for the app theme:',
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(fontSize: 16.sp),
                       ),
                     ),
                   ],
                 ),
               ),
-              SizedBox(height: 24),
+              SizedBox(height: 19.h),
               
               Expanded(
                 child: ListView.builder(
@@ -177,13 +187,13 @@ class _ThemeSelectorState extends State<ThemeSelector> {
                     final MaterialColor color = ThemeColorManager.colorOptions.values.elementAt(index);
                     
                     return Card(
-                      margin: EdgeInsets.only(bottom: 12),
+                      margin: EdgeInsets.only(bottom: 12.r),
                       elevation: selectedColorName == name ? 4 : 1,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(20.r),
                         side: BorderSide(
-                          color: selectedColorName == name ? Colors.black : Colors.transparent,
-                          width: 2,
+                          color: selectedColorName == name ? selectedColor : Colors.transparent,
+                          width: 2.w,
                         ),
                       ),
                       child: InkWell(
@@ -199,28 +209,28 @@ class _ThemeSelectorState extends State<ThemeSelector> {
                           themeProvider.setThemeColor(color);
                         },
                         child: Padding(
-                          padding: EdgeInsets.all(16),
+                          padding: EdgeInsets.all(15.r),
                           child: Row(
                             children: [
                               Container(
-                                width: 50,
-                                height: 50,
+                                width: 50.w,
+                                height: 40.h,
                                 decoration: BoxDecoration(
                                   color: color,
                                   shape: BoxShape.circle,
                                 ),
                               ),
-                              SizedBox(width: 16),
+                              SizedBox(width: 16.w),
                               Text(
                                 name,
                                 style: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 17.sp,
                                   fontWeight: selectedColorName == name ? FontWeight.bold : FontWeight.normal,
                                 ),
                               ),
                               Spacer(),
                               if (selectedColorName == name)
-                                Icon(Icons.check_circle, color: Colors.green, size: 28),
+                                Icon(Icons.check_circle, color: Colors.green, size: 28.sp),
                             ],
                           ),
                         ),
@@ -232,7 +242,7 @@ class _ThemeSelectorState extends State<ThemeSelector> {
               
             Container(
               width: double.infinity,
-              padding: EdgeInsets.symmetric(vertical: 16),
+              padding: EdgeInsets.symmetric(vertical: 14.h),
               child: ElevatedButton(
                 onPressed: hasChanges 
                     ? () async {
@@ -253,19 +263,19 @@ class _ThemeSelectorState extends State<ThemeSelector> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: selectedColor,
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 16),
+                  padding: EdgeInsets.symmetric(vertical: 13.h),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(15.r),
                   ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.save, color: Colors.white),
-                    SizedBox(width: 8),
+                    Icon(Icons.save, color: Colors.white, size: 28.sp),
+                    SizedBox(width: 8.w),
                     Text(
                       'Save My Theme Color',
-                      style: TextStyle(fontSize: 18, color: Colors.white),
+                      style: TextStyle(fontSize: 15.7.sp, color: Colors.white),
                     ),
                   ],
                 ),

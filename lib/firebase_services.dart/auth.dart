@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:futapedia/templates/snackbar.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 // import 'package:routemaster/routemaster.dart';
 import 'package:futapedia/firebase_services.dart/user.dart';
@@ -83,9 +84,7 @@ class AuthServices  {
       
       // Only show the snackbar if the context is still valid
       if (navigatorContext.mounted) {
-        ScaffoldMessenger.of(navigatorContext).showSnackBar(
-          SnackBar(content: Text("Google Sign-In failed. Please try again."))
-        );
+        CustomSnackbar.show(context, "Google Sign-In failed due to connection error", backgroundColor: Colors.red);
       }
       
       return null;
