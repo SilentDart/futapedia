@@ -130,7 +130,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ScreenUtilInit(
     // Design size with minimum width of 715
-      designSize: const Size(600, 1024),
+      designSize: const Size(550, 1024),
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context, child) {

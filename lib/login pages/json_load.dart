@@ -59,8 +59,8 @@ class _MainScreenState extends State<MainScreen> {
             body: Center(
               child: Lottie.asset(
                 'jsons/loading.json',
-                width: 200.w,
-                height: 200.h,
+                width: 180.w,
+                height: 180.h,
                 fit: BoxFit.contain,
               ),
             ),
