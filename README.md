@@ -1,16 +1,21 @@
-# futapedia
+# FUTAPEDIA
 
-A new Flutter project.
+## ABOUT
 
-## Getting Started
+FUTAPEDIA is a Flutter application for FUTA students.  
+It aims to decentralize academic resources such as PDFs, past questions, YouTube tutorials, etc.  
 
-This project is a starting point for a Flutter application.
+The application includes features such as:  
+- CBT-based exams/test practice  
+- Download and read PDFs  
+- Connect with other students  
+- Question and answer forum  
+- Reading-time schedule and reminders  
 
-A few resources to get you started if this is your first Flutter project:
+## GETTING STARTED
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+This is my first Flutter project.  
+It took about **four months of learning and development**.  
+Working on this project has made a significant impact on my Flutter journey by giving me hands-on experience with real-world app development.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+
