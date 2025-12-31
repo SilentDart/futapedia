@@ -19,3 +19,4 @@ It took about **four months of learning and development**.
 Working on this project has made a significant impact on my Flutter journey by giving me hands-on experience with real-world app development.
 
 
+### I CLEARLY HAVE NO KNOWLEDGE OF CLEAN ARCHITECTURE WHEN THIS PROJECT WAS CONCLUDED
